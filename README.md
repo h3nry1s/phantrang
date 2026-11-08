@@ -2,7 +2,7 @@
 
 Bảng xanh trên mọi màn hình: công cụ giảng dạy miễn phí cho thầy cô trên Windows 10 và 11. Chỉ bài bằng viên phấn, viết như tay, vẽ, chấm bài bằng Điểm 10 ngay trên slide, PDF hay trang web đang chiếu.
 
-Giới thiệu và thử từng tính năng: **https://h3nry1s.github.io/phantrang/**
+Giới thiệu và thử từng tính năng: **https://phantrang.org**
 
 ## Tải về và cài đặt
 
@@ -44,7 +44,7 @@ Kiểm tra tệp tải về đúng là bản phát hành: mã SHA-256 ghi trong 
 
 Thanh công cụ ở đáy màn hình có 4 chế độ: **Chuột**, **Chỉ**, **Viết**, **Chấm bài**. Menu **Bảng ⌄ › Bài giảng** để soạn, mở, lưu bài giảng (`.phantrang`) và xuất PDF. Hướng dẫn đầy đủ trong ứng dụng: chuột phải biểu tượng viên phấn ở khay hệ thống › **Hướng dẫn sử dụng**.
 
-Phấn Trắng không kết nối Internet và không thu thập dữ liệu ([chính sách quyền riêng tư](https://h3nry1s.github.io/phantrang/quyen-rieng-tu.html)). Nếu ứng dụng bị tắt đột ngột khi đang bật và con trỏ chuột biến mất, mở lại Phấn Trắng là con trỏ hiện lại.
+Phấn Trắng không kết nối Internet và không thu thập dữ liệu ([chính sách quyền riêng tư](https://phantrang.org/quyen-rieng-tu.html)). Nếu ứng dụng bị tắt đột ngột khi đang bật và con trỏ chuột biến mất, mở lại Phấn Trắng là con trỏ hiện lại.
 
 ## Tự build từ mã nguồn
 
