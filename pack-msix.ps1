@@ -28,7 +28,7 @@ if (-not $Version) { $v = [Version](Get-Item $exe).VersionInfo.FileVersion; $Ver
 $makeappx = @((Join-Path $root 'tools\sdk-buildtools'), "${env:ProgramFiles(x86)}\Windows Kits\10\bin") |
     ForEach-Object { Get-ChildItem $_ -Recurse -Filter makeappx.exe -ErrorAction SilentlyContinue } |
     Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-if (-not $makeappx) { throw 'Chưa có makeappx (Windows SDK). Chạy sign.ps1 một lần để tải Microsoft.Windows.SDK.BuildTools.' }
+if (-not $makeappx) { throw 'Chưa có makeappx (Windows SDK). Cài Windows 10/11 SDK hoặc giải nén gói NuGet Microsoft.Windows.SDK.BuildTools vào tools\sdk-buildtools.' }
 
 $layout = Join-Path $root 'build\msix-layout'
 if (Test-Path $layout) { Remove-Item $layout -Recurse -Force }

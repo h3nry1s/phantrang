@@ -26,4 +26,4 @@ Tác giả cung cấp dữ liệu miễn phí cho mục đích công cộng và 
 
 ## Công cụ dùng khi build (không nằm trong bản phát hành)
 
-- `signtool.exe` lấy từ gói NuGet chính thức `Microsoft.Windows.SDK.BuildTools` của Microsoft. `sign.ps1` tải gói khi cần và kiểm tra chữ ký Microsoft trước khi dùng.
+- `signtool.exe` và `makeappx.exe` lấy từ Windows SDK hoặc gói NuGet chính thức `Microsoft.Windows.SDK.BuildTools` của Microsoft.

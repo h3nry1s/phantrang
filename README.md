@@ -74,7 +74,7 @@ Chỉ cần Windows: script dùng `csc.exe` (.NET Framework 4.x) có sẵn, khô
 | `installer/` | Bộ cài cho từng tài khoản |
 | `assets/fonts/` | Phông chữ đi kèm (SIL Open Font License) |
 | `tests/` | Kiểm thử tự động |
-| `site/` | Trang giới thiệu (GitHub Pages) |
+| `site/` | Chính sách quyền riêng tư (GitHub Pages); trang giới thiệu ở [phantrang.org](https://phantrang.org) |
 
 ## Giấy phép
 

@@ -29,7 +29,7 @@ Phấn Trắng không gửi dữ liệu nào ra mạng. Ứng dụng không có 
 
 ## Ký trên máy người bảo trì (khi có chứng chỉ riêng)
 
-Nếu dùng chứng chỉ ký mã cá nhân (ví dụ Certum qua SimplySign) thay cho SignPath: đăng nhập SimplySign Desktop để chứng chỉ hiện trong Windows, rồi chạy `build.ps1` hoặc `release.ps1`. Hai script tự gọi `sign.ps1` (SHA-256, có dấu thời gian) khi thấy chứng chỉ; `release.ps1` không phát hành bản chưa ký trừ khi thêm `-AllowUnsigned`.
+Nếu dùng chứng chỉ ký mã cá nhân (ví dụ Certum qua SimplySign) thay cho SignPath: đăng nhập SimplySign Desktop để chứng chỉ hiện trong Windows, rồi chạy `build.ps1` hoặc `release.ps1`. Hai script tự ký (SHA-256, có dấu thời gian) khi thấy chứng chỉ và script ký nội bộ của người bảo trì; `release.ps1` không phát hành bản chưa ký trừ khi thêm `-AllowUnsigned`.
 
 ## Báo lỗi bảo mật
 
