@@ -1,0 +1,23 @@
+# build output
+dist/
+build/
+*.zip
+*.msix
+*.exe
+*.pdb
+
+# local test runs
+sandbox-out/
+
+# downloaded tools (sign.ps1 fetches signtool from Microsoft's NuGet package when needed)
+tools/sdk-buildtools/
+
+# release files are published as GitHub Release assets, not kept in the repository
+site/tai-ve/
+
+# editors and OS
+.vs/
+.vscode/
+*.user
+Thumbs.db
+desktop.ini
