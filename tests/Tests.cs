@@ -32,6 +32,27 @@ static class T
 
     static string Tmp;
 
+    /// <summary>A minimal .xlsx: shared strings and one sheet with the given &lt;row&gt; elements.</summary>
+    static void WriteXlsx(string path, string[] shared, string rows)
+    {
+        if (File.Exists(path)) File.Delete(path);
+        using (var zip = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            Action<string, string> put = (name, text) => { using (var w = new StreamWriter(zip.CreateEntry(name).Open(), new UTF8Encoding(false))) w.Write(text); };
+            const string M = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+            put("[Content_Types].xml", "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"/>");
+            put("xl/workbook.xml", "<workbook xmlns=\"" + M + "\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Lớp\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>");
+            put("xl/_rels/workbook.xml.rels", "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"x\" Target=\"worksheets/lop.xml\"/></Relationships>");
+            put("xl/sharedStrings.xml", "<sst xmlns=\"" + M + "\">" + string.Concat(shared.Select(s => "<si><t>" + System.Security.SecurityElement.Escape(s) + "</t></si>")) + "</sst>");
+            put("xl/worksheets/lop.xml", "<worksheet xmlns=\"" + M + "\"><sheetData>" + rows + "</sheetData></worksheet>");
+        }
+    }
+
+    static string Part(System.IO.Compression.ZipArchive zip, string name)
+    {
+        using (var s = zip.GetEntry(name).Open()) using (var r = new StreamReader(s, Encoding.UTF8)) return r.ReadToEnd();
+    }
+
     // ---------------- helpers ----------------
 
     static TextMark Text(string s, float x, float y, float px = 52)
@@ -122,6 +143,11 @@ static class T
             Check(!MathInput.Apply("x^2", 99, out r, out c), "con trỏ ngoài chuỗi");
             Check(!MathInput.Apply("x^2", 0, out r, out c), "con trỏ ở đầu");
         });
+
+        Console.WriteLine("\nMở PowerPoint: khung trang chiếu");
+        Run("slide 16:9 vừa khít màn 16:9", () => { var r = PptxImport.Fit(1600, 900, 1920, 1080); Check(Math.Abs(r.X) < 0.01 && Math.Abs(r.Y) < 0.01, "không có lề"); Eq(1920.0, Math.Round(r.Width, 2), "rộng"); Eq(1080.0, Math.Round(r.Height, 2), "cao"); });
+        Run("slide 4:3 trên màn 16:9: cao đủ, căn giữa ngang", () => { var r = PptxImport.Fit(1024, 768, 1920, 1080); Eq(1080f, r.Height, "cao"); Eq(1440f, r.Width, "rộng"); Eq(240f, r.X, "lề trái"); Eq(0f, r.Y, "lề trên"); });
+        Run("slide 16:9 trên máy chiếu 4:3: rộng đủ, căn giữa dọc", () => { var r = PptxImport.Fit(1600, 900, 1024, 768); Eq(1024f, r.Width, "rộng"); Eq(576f, r.Height, "cao"); Eq(96f, r.Y, "lề trên"); });
 
         Console.WriteLine("\nBài giảng: lưu và mở");
         Run("lưu rồi mở lại cùng cỡ màn hình", () =>
@@ -438,6 +464,274 @@ static class T
             for (int i = 0; i < entries.Count; i++)
                 Check(text.Substring(int.Parse(entries[i].Groups[1].Value)).StartsWith((i + 1) + " 0 obj"), "vị trí đối tượng " + (i + 1));
             Check(!File.Exists(f + ".tmp"), "không để lại tệp tạm");
+        });
+        Run("xuất PowerPoint mới: mỗi trang một trang chiếu ảnh, XML hợp lệ", () =>
+        {
+            string f = Path.Combine(Tmp, "bài giảng.pptx");
+            Eq(2, Lesson.ExportPptx(f, Sample(), 1280, 720, "green", false, "Bài 5"), "số trang chiếu");
+            using (var zip = System.IO.Compression.ZipFile.OpenRead(f))
+            {
+                var names = zip.Entries.Select(e => e.FullName).ToList();
+                foreach (var part in new[] { "[Content_Types].xml", "_rels/.rels", "ppt/presentation.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml",
+                    "ppt/slides/_rels/slide2.xml.rels", "ppt/media/image2.jpeg", "ppt/slideMasters/slideMaster1.xml", "ppt/slideLayouts/slideLayout1.xml", "ppt/theme/theme1.xml" })
+                    Check(names.Contains(part), "có " + part);
+                foreach (var e in zip.Entries.Where(e => e.FullName.EndsWith(".xml") || e.FullName.EndsWith(".rels")))
+                    using (var s = e.Open()) System.Xml.Linq.XDocument.Load(s);   // every part parses
+                var pres = Part(zip, "ppt/presentation.xml");
+                Eq(2, System.Text.RegularExpressions.Regex.Matches(pres, "<p:sldId ").Count, "2 trang chiếu trong danh sách");
+                Check(pres.Contains("cx=\"12192000\" cy=\"6858000\""), "khổ 16:9 như màn hình");
+            }
+            Check(!File.Exists(f + ".tmp"), "không để lại tệp tạm");
+        });
+        Run("thêm vào PowerPoint có sẵn: giữ trang cũ, thêm vào cuối, lặp lại được", () =>
+        {
+            string f = Path.Combine(Tmp, "có sẵn.pptx");
+            Lesson.ExportPptx(f, Sample(), 1280, 720, "green", false, "Bài cũ");
+            Eq(2, Lesson.ExportPptx(f, Sample(), 1024, 768, "white", true, null), "thêm 2 trang lần 1");
+            Eq(2, Lesson.ExportPptx(f, Sample(), 1024, 768, "white", true, null), "thêm 2 trang lần 2");
+            using (var zip = System.IO.Compression.ZipFile.OpenRead(f))
+            {
+                var pres = Part(zip, "ppt/presentation.xml");
+                var ids = System.Text.RegularExpressions.Regex.Matches(pres, "<p:sldId id=\"(\\d+)\" r:id=\"([^\"]+)\"").Cast<System.Text.RegularExpressions.Match>().ToList();
+                Eq(6, ids.Count, "6 trang chiếu");
+                Eq(6, ids.Select(m => m.Groups[1].Value).Distinct().Count(), "id trang chiếu không trùng");
+                var rels = Part(zip, "ppt/_rels/presentation.xml.rels");
+                foreach (var m in ids) Check(rels.Contains("Id=\"" + m.Groups[2].Value + "\""), "quan hệ " + m.Groups[2].Value + " có thật");
+                Check(zip.GetEntry("ppt/slides/slide6.xml") != null, "slide6.xml");
+                Eq(6, zip.Entries.Count(e => e.FullName.StartsWith("ppt/media/")), "6 ảnh, không ảnh nào bị ghi đè");
+                Eq(6, System.Text.RegularExpressions.Regex.Matches(Part(zip, "[Content_Types].xml"), "presentationml.slide\\+xml").Count, "kiểu nội dung cho 6 trang");
+                // a 4:3 page in a 16:9 deck is fitted inside the slide, centred
+                var s3 = Part(zip, "ppt/slides/slide3.xml");
+                Check(s3.Contains("<a:off x=\"1524000\" y=\"0\"/><a:ext cx=\"9144000\" cy=\"6858000\"/>"), "ảnh 4:3 nằm giữa trang 16:9");
+            }
+        });
+        Run("thêm vào tệp không phải PowerPoint → báo lỗi rõ ràng, tệp gốc còn nguyên", () =>
+        {
+            string f = Path.Combine(Tmp, "giả.pptx");
+            File.WriteAllText(f, "không phải pptx");
+            Throws<InvalidDataException>(() => Lesson.ExportPptx(f, Sample(), 1280, 720, "green", true, null), "tệp chữ");
+            Eq("không phải pptx", File.ReadAllText(f), "tệp gốc");
+            Check(!File.Exists(f + ".tmp"), "không để lại tệp tạm");
+        });
+        Run("dòng kẻ khi gõ: bấm đâu cũng rơi đúng đầu một dòng", () =>
+        {
+            var sc = new Stage();
+            sc.Resize(1920, 1080);
+            float px = 54, step = px * 1.3f, top = 1080 * 0.08f;
+            Near(top, sc.SnapToLine(top + 5, px), 0.01, "dòng đầu");
+            Near(top + 3 * step, sc.SnapToLine(top + 3 * step + step * 0.9f, px), 0.01, "dòng 4");
+            Check(sc.SnapToLine(3, px) >= 0, "không lên khỏi mép trên");
+        });
+        Run("giữ chuột rồi buông ở bất cứ đâu (kể cả trên thanh công cụ): luôn báo đã buông", () =>
+        {
+            var seen = new List<GateEvent>();
+            var gate = new ClickGate { Capturing = true, Holes = new[] { new RECT(0, 900, 1920, 1080) }, BypassProbe = () => false, Report = e => seen.Add(e) };
+            Check(gate.Decide(Win32.Wm.LButtonDown, false, new POINT(500, 400)), "giữ nút trên bảng: không lọt xuống slide");
+            Check(gate.Decide(Win32.Wm.LButtonUp, false, new POINT(600, 1000)), "buông trên thanh công cụ: vẫn là của Phấn Trắng");
+            Eq(2, seen.Count, "số sự kiện");
+            Eq(GateKind.Down, seen[0].Kind, "nhấn");
+            Eq(GateKind.Up, seen[1].Kind, "buông");
+        });
+        Run("nhấn trên thanh công cụ rồi buông ngoài thanh: đi thẳng xuống Windows, không thành nét vẽ", () =>
+        {
+            var seen = new List<GateEvent>();
+            var gate = new ClickGate { Capturing = true, Holes = new[] { new RECT(0, 900, 1920, 1080) }, BypassProbe = () => false, Report = e => seen.Add(e) };
+            Check(!gate.Decide(Win32.Wm.LButtonDown, false, new POINT(600, 1000)), "nhấn trên thanh");
+            Check(!gate.Decide(Win32.Wm.LButtonUp, false, new POINT(600, 300)), "buông ngoài thanh");
+            Eq(0, seen.Count(e => e.Kind == GateKind.Down || e.Kind == GateKind.Up), "không có nhấn/buông nào cho bảng");
+        });
+        Run("giữ phím Alt: nhấn và buông đều đi xuống slide, báo đủ cặp", () =>
+        {
+            var seen = new List<GateEvent>();
+            bool alt = true;
+            var gate = new ClickGate { Capturing = true, BypassProbe = () => alt, Report = e => seen.Add(e) };
+            Check(!gate.Decide(Win32.Wm.LButtonDown, false, new POINT(10, 10)), "nhấn");
+            alt = false;   // Alt let go before the button: the release still belongs to the slide
+            Check(!gate.Decide(Win32.Wm.LButtonUp, false, new POINT(10, 10)), "buông");
+            Eq(GateKind.BypassUp, seen.Last().Kind, "báo buông");
+        });
+        Run("bộ bắt chuột dừng giữa lúc đang giữ (Windows gỡ hook, tắt app): tự báo đã buông", () =>
+        {
+            var seen = new List<GateEvent>();
+            var gate = new ClickGate { Capturing = true, BypassProbe = () => false, Report = e => seen.Add(e) };
+            gate.Decide(Win32.Wm.LButtonDown, false, new POINT(500, 400));
+            gate.Decide(Win32.Wm.RButtonDown, false, new POINT(500, 400));
+            gate.Stop();
+            Eq(2, seen.Count(e => e.Kind == GateKind.Up), "báo buông cả hai nút");
+            Check(!gate.Decide(Win32.Wm.LButtonUp, false, new POINT(500, 400)), "lần buông thật đến muộn không bị nuốt nữa");
+        });
+        Run("nhấn giả lập (phần mềm khác gửi) không bị giữ lại", () =>
+        {
+            var seen = new List<GateEvent>();
+            var gate = new ClickGate { Capturing = true, BypassProbe = () => false, Report = e => seen.Add(e) };
+            Check(!gate.Decide(Win32.Wm.LButtonDown, true, new POINT(500, 400)), "nhấn giả lập");
+            Check(!gate.Decide(Win32.Wm.LButtonUp, true, new POINT(500, 400)), "buông giả lập");
+            Eq(0, seen.Count, "không báo gì");
+        });
+        Run("lưới an toàn: Windows làm mất tin buông chuột → tự kết thúc sau chốc lát", () =>
+        {
+            var g = new HoldGuard();
+            g.RawDown(0, 10.00); g.Pressed(0, 10.01);
+            Check(!g.Stuck(0, 11), "còn giữ thật: không đụng tới");
+            g.RawUp(0, 12.0);
+            Check(!g.Stuck(0, 12.1), "cho bộ bắt chuột kịp báo trước");
+            Check(g.Stuck(0, 12.0 + HoldGuard.Grace), "quá hạn: coi như đã buông");
+            g.Released(0);
+            Check(!g.Stuck(0, 20), "đã buông thì thôi");
+        });
+        Run("lưới an toàn: bấm rất nhanh (tin buông thô đến trước tin nhấn) vẫn đúng", () =>
+        {
+            var g = new HoldGuard();
+            g.RawDown(0, 5.00); g.RawUp(0, 5.02); g.Pressed(0, 5.03);
+            Check(!g.Stuck(0, 5.1), "chờ bộ bắt chuột");
+            Check(g.Stuck(0, 5.4), "rồi mới tự buông");
+        });
+        Run("lưới an toàn: bút cảm ứng/màn chạm (không có tin thô) không bị cắt nét", () =>
+        {
+            var g = new HoldGuard();
+            g.RawDown(0, 1.0); g.RawUp(0, 1.1);   // an old mouse click
+            g.Pressed(0, 30.0);                  // a pen press: raw input says nothing
+            Check(!g.Stuck(0, 60), "nét bút dài vẫn giữ");
+            g.RawDown(1, 40); g.RawUp(1, 40.1);
+            Check(!g.Stuck(0, 60), "nút phải không ảnh hưởng nút trái");
+        });
+        Console.WriteLine("\nLớp học: danh sách, gọi tên, chia nhóm, thi đua, đếm ngược");
+        Run("nhập từng dòng: bỏ dòng trống, số thứ tự, khoảng trắng thừa", () =>
+        {
+            var n = ClassRoster.Clean(new[] { "Danh sách lớp 6A", "1. Nguyễn Văn An", "","  2)  Trần   Thị Bình ", "3 - Lê Chi", "15", "\tPhạm Dũng" });
+            Eq("Nguyễn Văn An|Trần Thị Bình|Lê Chi|Phạm Dũng", string.Join("|", n), "danh sách");
+        });
+        Run("đọc tệp .txt (UTF-8 và bảng mã Windows cũ) và .csv có cột Họ và tên", () =>
+        {
+            string txt = Path.Combine(Tmp, "lop.txt");
+            File.WriteAllText(txt, "An\r\nBình\r\n\r\nChi\r\n", new UTF8Encoding(true));
+            Eq(3, ClassRoster.FromFile(txt).Count, "txt UTF-8");
+            string csv = Path.Combine(Tmp, "lop.csv");
+            File.WriteAllText(csv, "STT,Họ và tên,Ngày sinh\r\n1,\"Nguyễn Văn An\",01/02/2014\r\n2,Trần Thị Bình,03/04/2014\r\n", new UTF8Encoding(false));
+            Eq("Nguyễn Văn An|Trần Thị Bình", string.Join("|", ClassRoster.FromFile(csv)), "csv");
+        });
+        Run("đọc tệp Excel .xlsx: cột Họ đệm + Tên ghép lại, bỏ STT và ngày sinh", () =>
+        {
+            string f = Path.Combine(Tmp, "lop.xlsx");
+            WriteXlsx(f, new[] { "Danh sách lớp 6A", "STT", "Họ đệm", "Tên", "Ngày sinh", "Nguyễn Văn", "An", "Trần Thị", "Bình" },
+                "<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c></row>" +
+                "<row r=\"3\"><c r=\"A3\" t=\"s\"><v>1</v></c><c r=\"B3\" t=\"s\"><v>2</v></c><c r=\"C3\" t=\"s\"><v>3</v></c><c r=\"D3\" t=\"s\"><v>4</v></c></row>" +
+                "<row r=\"4\"><c r=\"A4\"><v>1</v></c><c r=\"B4\" t=\"s\"><v>5</v></c><c r=\"C4\" t=\"s\"><v>6</v></c><c r=\"D4\"><v>41640</v></c></row>" +
+                "<row r=\"5\"><c r=\"A5\"><v>2</v></c><c r=\"B5\" t=\"s\"><v>7</v></c><c r=\"C5\" t=\"inlineStr\"><is><t>Bình</t></is></c></row>");
+            Eq("Nguyễn Văn An|Trần Thị Bình", string.Join("|", ClassRoster.FromFile(f)), "xlsx");
+        });
+        Run("Excel không có tiêu đề: lấy cột nhiều chữ nhất; tệp hỏng/.xls báo lỗi rõ ràng", () =>
+        {
+            var rows = new List<string[]> { new[] { "1", "Hoa", "8.5" }, new[] { "2", "Minh", "9" }, new[] { "3", "Lan", "7" } };
+            Eq("Hoa|Minh|Lan", string.Join("|", ClassRoster.FromRows(rows)), "không tiêu đề");
+            string bad = Path.Combine(Tmp, "hong.xlsx");
+            File.WriteAllText(bad, "không phải excel");
+            Throws<InvalidDataException>(() => ClassRoster.FromFile(bad), "xlsx hỏng");
+            string xls = Path.Combine(Tmp, "cu.xls");
+            File.WriteAllText(xls, "x");
+            Throws<InvalidDataException>(() => ClassRoster.FromFile(xls), ".xls");
+        });
+        Run("gọi tên: ai cũng được gọi một lần trước khi gọi lại", () =>
+        {
+            var p = new NamePicker(new[] { "An", "Bình", "Chi", "Dũng", "Em" }, new Random(3));
+            var first = Enumerable.Range(0, 5).Select(i => p.Next()).ToList();
+            Eq(5, first.Distinct().Count(), "vòng 1 không trùng");
+            Eq(0, p.Left, "hết lượt");
+            Check(p.Next() != null, "tự sang vòng mới");
+            Eq(4, p.Left, "vòng 2 còn 4");
+            Check(new NamePicker(new string[0]).Next() == null, "danh sách rỗng");
+        });
+        Run("chia nhóm: đủ người, các nhóm chênh nhau tối đa 1", () =>
+        {
+            var names = Enumerable.Range(1, 23).Select(i => "HS" + i).ToList();
+            var g = Grouping.IntoGroups(names, 4, new Random(1));
+            Eq(4, g.Count, "4 nhóm");
+            Eq(23, g.Sum(x => x.Count), "đủ 23 người");
+            Check(g.Max(x => x.Count) - g.Min(x => x.Count) <= 1, "đều nhau");
+            Eq(23, g.SelectMany(x => x).Distinct().Count(), "không ai bị lặp");
+            var s = Grouping.BySize(names, 5, new Random(2));
+            Eq(5, s.Count, "nhóm 5 người → 5 nhóm (4-5 người)");
+            Eq(3, Grouping.IntoGroups(names.Take(3).ToList(), 10, new Random(1)).Count, "không có nhóm rỗng");
+        });
+        Run("thi đua: cộng trừ điểm, hoàn tác, đội dẫn đầu (hoà thì cùng dẫn)", () =>
+        {
+            var c = Contest.Numbered(3, "Tổ");
+            Eq("Tổ 1|Tổ 2|Tổ 3", string.Join("|", c.Teams), "tên đội");
+            Eq(0, c.Leaders().Count, "chưa ai có điểm");
+            c.Add(0, 1); c.Add(1, 2); c.Add(0, 1);
+            Eq("0,1", string.Join(",", c.Leaders()), "hoà 2 điểm");
+            c.Add(2, -1);
+            Eq(-1, c.Scores[2], "điểm âm");
+            Eq(2, c.Undo(), "hoàn tác bước cuối");
+            Eq(0, c.Scores[2], "trả lại điểm");
+            c.ResetScores();
+            Check(!c.CanUndo && c.Scores.All(x => x == 0), "làm lại từ đầu");
+        });
+        Run("đếm ngược: tạm dừng, chạy tiếp, thêm giờ, hết giờ", () =>
+        {
+            var t = new Countdown(60);
+            t.Start(100);
+            Near(50, t.Remaining(110), 1e-9, "sau 10 giây");
+            t.Pause(110);
+            Near(50, t.Remaining(500), 1e-9, "dừng thì không trôi");
+            t.Start(500);
+            t.AddTime(30, 505);
+            Near(75, t.Remaining(505), 1e-9, "thêm 30 giây");
+            Check(t.Ended(600), "hết giờ");
+            Eq("01:15", Countdown.Format(74.2), "hiển thị làm tròn lên");
+            Eq("00:00", Countdown.Format(-3), "không âm");
+            t.Reset();
+            Check(!t.Running, "đặt lại");
+        });
+        Run("vẽ sát mép thước kẻ: nét chạy thẳng theo mép, kể cả khi thước xoay", () =>
+        {
+            var ruler = new GeoTool("ruler", new PointF(100, 100), 50);
+            var p = new PointF(500, 140);
+            Check(ruler.Snap(new PointF(300, 90), ref p, 26), "bắt đầu cách mép 10px");
+            Near(90, p.Y, 0.01, "đi song song mép trên");
+            Near(500, p.X, 0.01, "giữ vị trí dọc theo mép");
+            var far = new PointF(500, 140);
+            Check(!ruler.Snap(new PointF(300, 30), ref far, 26), "xa mép: vẽ tự do");
+            ruler.Angle = 30;
+            var q = new PointF(400, 400);
+            var start = new PointF(100 + 200 * (float)Math.Cos(Math.PI / 6), 100 + 200 * (float)Math.Sin(Math.PI / 6));
+            Check(ruler.Snap(start, ref q, 26), "thước xoay 30°");
+            Near(30, Math.Atan2(q.Y - start.Y, q.X - start.X) * 180 / Math.PI, 0.01, "nét theo góc 30°");
+            ruler.Dispose();
+        });
+        Run("ê-ke: vẽ dọc cạnh góc vuông và cạnh huyền", () =>
+        {
+            var sq = new GeoTool("set45", new PointF(0, 0), 50);   // legs along +x and up (-y), 500 px
+            var p = new PointF(-5, -300);
+            Check(sq.Snap(new PointF(-8, -100), ref p, 26), "cạnh đứng");
+            Near(-8, p.X, 0.01, "thẳng đứng");
+            var h = new PointF(400, -400);
+            Check(sq.Snap(new PointF(255, -255), ref h, 26), "cạnh huyền");
+            Near(0, h.X + h.Y, 0.01, "chéo 45°");
+            sq.Dispose();
+        });
+        Console.WriteLine("\nSố liệu sử dụng ẩn danh");
+        Run("gói tin chỉ có mã máy, phiên bản, kênh, Windows và số đếm", () =>
+        {
+            var n = new Dictionary<string, int> { { "tool.draw", 5 }, { "start", 1 }, { "export.pptx", 2 } };
+            string json = Usage.Payload("0123456789abcdef0123456789abcdef", "1.3.0", "tai-ve", "10.0.26200.0", n);
+            Eq("{\"id\":\"0123456789abcdef0123456789abcdef\",\"v\":\"1.3.0\",\"ch\":\"tai-ve\",\"os\":\"10.0.26200.0\",\"n\":{\"export.pptx\":2,\"start\":1,\"tool.draw\":5}}", json, "json");
+            var parsed = new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(json) as Dictionary<string, object>;
+            Eq(5, parsed.Count, "đúng 5 trường");
+        });
+        Run("gói tin không mang được chữ tự do (tên, đường dẫn, dấu ngoặc kép)", () =>
+        {
+            var n = new Dictionary<string, int> { { "Nguyễn Văn An", 1 }, { "C:\\Users\\cô giáo\\bai.pptx", 1 }, { "x\",\"y", 1 }, { "tool.type", 0 }, { "class.picker", 3 } };
+            string json = Usage.Payload("ab\"cd", "1.3\"}", "tai-ve", "10.0", n);
+            Eq("{\"id\":\"abcd\",\"v\":\"1.3\",\"ch\":\"tai-ve\",\"os\":\"10.0\",\"n\":{\"class.picker\":3}}", json, "lọc sạch");
+            Check(new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(json) != null, "vẫn là JSON hợp lệ");
+        });
+        Run("gói tin giới hạn số mục và số đếm", () =>
+        {
+            var n = Enumerable.Range(0, 100).ToDictionary(i => "k" + i, i => 999999999);
+            string json = Usage.Payload("id", "1", "store", "10", n);
+            Eq(Usage.MaxKeys, System.Text.RegularExpressions.Regex.Matches(json, "\"k\\d+\"").Count, "tối đa 60 mục");
+            Check(!json.Contains("999999999") && json.Contains(":" + Usage.MaxCount), "số đếm bị chặn trên");
         });
         Run("đường thẳng giữ Shift: nấc 45°, hình vuông/tròn đều", () =>
         {

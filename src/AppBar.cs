@@ -94,6 +94,9 @@ namespace PhanTrang
             row.Add(Small("clear", "clear", "Xoá bảng", "Xoá hết nét (Hoàn tác để lấy lại)" + WithKey(Settings.ClearKey), !Stage.HasInk));
 
             row.Add(ToolButton.Line());
+            row.Add(new ToolButton { Id = "class", Icon = "class", Label = "Lớp học", OpensMenu = true, Split = true, Width = 74, Tip = "Đếm ngược, gọi tên, chia nhóm, thi đua, thước kẻ, com-pa…" });
+
+            row.Add(ToolButton.Line());
             bool board = Stage.Book.OnBoard;
             row.Add(new ToolButton
             {
@@ -158,23 +161,28 @@ namespace PhanTrang
                         new ToolButton { Id = "image:right", Icon = "rotr", Label = "Xoay phải", Width = 80, Off = !chosen },
                         new ToolButton { Id = "image:delete", Icon = "clear", Label = "Xoá ảnh", Width = 76, Off = !chosen },
                     };
+                case "class": return ClassChoices();
                 case "lesson":
                     bool any = Stage.Book.HasLesson;
-                    return new List<ToolButton>
+                    var lessonRow = new List<ToolButton>
                     {
                         new ToolButton { Id = "lesson:new", Icon = "newlesson", Label = "Bài mới", Width = 76 },
-                        new ToolButton { Id = "lesson:open", Icon = "open", Label = "Mở bài", Width = 76 },
+                        new ToolButton { Id = "lesson:openpptx", Icon = "open", Label = "Mở PPT", Width = 76, Tip = "Mở bài PowerPoint: mỗi trang chiếu thành một trang bảng để viết lên" },
                         new ToolButton { Id = "image:add", Icon = "addimage", Label = "Thêm ảnh", Width = 80 },
-                        new ToolButton { Id = "lesson:save", Icon = "save", Label = "Lưu bài", Width = 76, Off = !any },
                         new ToolButton { Id = "lesson:pdf", Icon = "pdf", Label = "Xuất PDF", Width = 76, Off = !any, Tip = "Cả bài giảng thành một tệp PDF để in hoặc gửi" },
+                        new ToolButton { Id = "lesson:pptx", Icon = "pptx", Label = "PowerPoint", Width = 84, Off = !any, Tip = "Các trang thành bài PowerPoint mới để trình chiếu" },
+                        new ToolButton { Id = "lesson:addpptx", Icon = "addpptx", Label = "Thêm vào PPT", Width = 92, Off = !any, Tip = "Thêm các trang vào cuối một bài PowerPoint có sẵn" },
                         new ToolButton { Id = "lesson:images", Icon = "image", Label = "Xuất ảnh", Width = 76, Off = !any },
                     };
+                    if (!PowerPointOn) lessonRow.RemoveAll(b => b.Id.Contains("pptx"));
+                    return lessonRow;
             }
             return new List<ToolButton>();
         }
 
         void SetTool(string tool)
         {
+            if (tool != Settings.Tool) Usage.Count("tool." + tool);
             if (WritingTools.Contains(tool)) Settings.WriteTool = tool;
             Settings.Tool = tool;
             if (tool == "type") OpenTyping(); else CloseTyping();
@@ -255,10 +263,12 @@ namespace PhanTrang
                         Refresh();
                     }
                     return;
+                case "class": toolbar.CloseChoices(); ClassTool(arg); return;
                 case "lesson":
                     if (arg == "new") NewLesson();
-                    else if (arg == "open") OpenLesson(null);
-                    else if (arg == "save") SaveLesson();
+                    else if (arg == "openpptx") { toolbar.CloseChoices(); OpenPptx(); }
+                    else if (arg == "pptx") ExportPptx(false);
+                    else if (arg == "addpptx") ExportPptx(true);
                     else if (arg == "pdf") ExportPdf();
                     else if (arg == "images") ExportImages();
                     return;
@@ -278,6 +288,7 @@ namespace PhanTrang
 
         void SetBoard(string kind)
         {
+            if (kind != "none" && kind != Stage.Board) Usage.Count("board." + kind);
             if (kind == "none" && Settings.Tool == "image") SetTool("pointer");
             if (kind != "none") Settings.BoardKind = kind;
             Stage.SetBoard(kind);

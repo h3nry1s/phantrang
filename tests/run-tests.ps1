@@ -16,7 +16,7 @@ if (-not $?) { throw 'Biên dịch ứng dụng lỗi' }
 New-Item -ItemType Directory -Force $out | Out-Null
 Copy-Item (Join-Path $dist 'PhanTrang.exe') $out -Force    # the tests load the app's classes from here
 & $csc /nologo /codepage:65001 /target:exe /platform:anycpu "/out:$out\PhanTrang.Tests.exe" `
-    "/r:$out\PhanTrang.exe" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll `
+    "/r:$out\PhanTrang.exe" /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Xml.dll /r:System.Xml.Linq.dll `
     (Join-Path $PSScriptRoot 'Tests.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Biên dịch test lỗi' }
 if ($NoRun) { Write-Host "Đã biên dịch: $out\PhanTrang.Tests.exe"; exit 0 }

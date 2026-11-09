@@ -245,8 +245,20 @@ namespace PhanTrang
             else p.Row("Mở cùng Windows", "Phấn Trắng chờ sẵn ở khay hệ thống mỗi khi bật máy.", Switch(Settings.LaunchAtLogin, v => Settings.LaunchAtLogin = v));
             p.Row("Luôn hiện thanh công cụ", "Tắt thì thanh chỉ hiện khi đưa chuột xuống đáy màn hình.", Switch(Settings.ToolbarAlways, v => Settings.ToolbarAlways = v));
             p.Row("Chữ dưới mỗi nút", "Tắt để thanh công cụ gọn hơn.", Switch(Settings.ToolbarLabels, v => Settings.ToolbarLabels = v));
+            var barSizes = new[] { "s", "m", "l", "xl" };
+            p.Row("Cỡ thanh công cụ", null, Pick(new[] { "Nhỏ", "Vừa", "Lớn", "Rất lớn" }, Array.IndexOf(barSizes, Settings.ToolbarSize), i => Settings.ToolbarSize = barSizes[i]));
+            p.Row("Khi đang viết, vẽ", "Thanh công cụ mờ đi để không che nét, buông chuột là hiện lại.", PickNumber(new[] { 0.0, 0.15, 0.3, 0.55 },
+                new[] { "Ẩn hẳn", "Rất mờ", "Mờ", "Hơi mờ" }, Settings.ToolbarDim, 2, v => Settings.ToolbarDim = v));
+            var resetPlace = Button("Đặt lại vị trí", false);
+            resetPlace.Click += (s, e) => Settings.ResetPlaces();
+            p.Row("Vị trí thanh công cụ và khung gõ chữ", "Kéo thanh bằng 6 chấm ở đầu thanh; kéo khung gõ chữ ở chỗ trống, đổi cỡ ở góc dưới bên phải.", resetPlace);
             p.Row("Nút bật nhanh ở góc màn hình", "Khi Phấn Trắng đang tắt, một nút tròn nằm ở góc dưới bên phải. Bấm để bật, kéo để dời chỗ.", Switch(Settings.QuickButton, v => Settings.QuickButton = v));
             p.Row("Tiếng “cộc” khi chạm và đóng dấu", "Âm nhỏ như gõ thước lên bảng.", Switch(Settings.Sound, v => { Settings.Sound = v; if (v) app.Sounds.Tap(); }));
+            p.Heading("Quyền riêng tư");
+            p.Row("Gửi số liệu sử dụng ẩn danh", "Chỉ đếm số máy dùng Phấn Trắng và số lần dùng mỗi công cụ, để biết nên cải thiện gì. Không gửi tên, danh sách lớp, nội dung bài hay tên tệp. Không có mạng thì không gửi gì.", Switch(Settings.UsageStats, v => Settings.UsageStats = v));
+            var policy = Button("Xem chính sách quyền riêng tư", false);
+            policy.Click += (s, e) => { try { Process.Start("https://phantrang.org/quyen-rieng-tu.html"); } catch (Exception ex) { Log.Write("mở chính sách: " + ex.Message); } };
+            p.Row("Chi tiết những gì được gửi", null, policy);
             p.Heading("Bấm thật vào slide");
             var keys = new[] { "alt", "ctrl", "shift", "off" };
             p.Row("Giữ phím này rồi bấm", "Dùng để chuyển slide, mở video như bình thường.", Pick(new[] { "Alt", "Ctrl", "Shift", "Tắt" }, Array.IndexOf(keys, Settings.InteractKey), i => Settings.InteractKey = keys[i]));
@@ -289,6 +301,7 @@ namespace PhanTrang
             p.Add(new ChoiceGrid(ChoiceGrid.Look.Tiles, Catalog.TextFonts, id => Settings.TextFont == id, id => Settings.TextFont = id, k, p.Width, 5, 92,
                 (g, r, id) => { using (var f = Fonts.Get(id, Px(26))) Ui.Text(g, "Aă", f, Theme.Green, r, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine); }));
             p.Add(new ChoiceGrid(ChoiceGrid.Look.Strip, Catalog.TextSizes, id => Settings.TextSize == id, id => Settings.TextSize = id, k, p.Width));
+            p.Row("Kẻ dòng khi gõ chữ", "Hiện các dòng kẻ mờ ngang bảng; bấm vào dòng nào thì chữ nằm ngay ngắn trên dòng đó.", Switch(Settings.TypeLines, v => Settings.TypeLines = v));
             p.Heading("Nét vẽ");
             p.Row("Nét trên slide", "Nét trên bảng luôn được giữ lại.", PickNumber(new[] { 0.0, 1, 3, 5, 10 },
                 new[] { "Giữ đến khi xoá", "Mờ sau 1 giây", "Mờ sau 3 giây", "Mờ sau 5 giây", "Mờ sau 10 giây" }, Settings.FadeSeconds, 0, v => Settings.FadeSeconds = v));
@@ -327,19 +340,22 @@ namespace PhanTrang
 
         void LessonSection(PageBuilder p)
         {
-            p.Title("Bài giảng soạn sẵn", "Soạn trước các trang bảng ở nhà, lưu thành tệp. Lên lớp chỉ cần mở ra và chuyển trang bằng ‹ › trên thanh công cụ.");
+            bool ppt = TeacherApp.PowerPointOn;
+            p.Title("Bài giảng", ppt ? "Soạn các trang bảng rồi xuất thành PowerPoint để trình chiếu, hoặc PDF để in và gửi." : "Soạn các trang bảng rồi xuất thành PDF để in và gửi, hoặc thành ảnh.");
             var actions = new FlowLayoutPanel { AutoSize = true, WrapContents = true, MaximumSize = new Size(p.Width, 0), BackColor = Theme.Cream, Margin = new Padding(0, Px(6), 0, 0) };
             var list = new[]
             {
                 Tuple.Create("Soạn bài mới", true, (Action)app.NewLesson),
-                Tuple.Create("Mở bài giảng…", false, (Action)(() => app.OpenLesson(null))),
-                Tuple.Create("Lưu bài đang mở…", false, (Action)(() => app.SaveLesson())),
                 Tuple.Create("Thêm ảnh vào trang…", false, (Action)app.AddImage),
                 Tuple.Create("Xuất PDF…", false, (Action)app.ExportPdf),
+                Tuple.Create("Mở bài PowerPoint…", false, (Action)(() => app.OpenPptx())),
+                Tuple.Create("Xuất PowerPoint…", false, (Action)(() => app.ExportPptx(false))),
+                Tuple.Create("Thêm vào PowerPoint có sẵn…", false, (Action)(() => app.ExportPptx(true))),
                 Tuple.Create("Xuất ảnh các trang…", false, (Action)app.ExportImages),
             };
             foreach (var a in list)
             {
+                if (!ppt && a.Item1.Contains("PowerPoint")) continue;
                 var b = Button(a.Item1, a.Item2);
                 b.Margin = new Padding(0, 0, Px(8), Px(8));
                 var act = a.Item3;
@@ -351,18 +367,17 @@ namespace PhanTrang
             p.Note("1. Bấm “Soạn bài mới”: bảng mở ra, gõ chữ, vẽ hình, đóng dấu như lúc dạy.");
             p.Note("2. Bấm + trên thanh công cụ để thêm trang. Mỗi trang có thể dùng loại bảng riêng.");
             p.Note("3. Cần hình minh hoạ: “Thêm ảnh vào trang”, rồi bấm vào chỗ muốn đặt (Esc để thôi).");
-            p.Note("4. Lưu bài: tệp .phantrang chép USB hay gửi Zalo đều mở được, máy chiếu khác cỡ vẫn đúng tỉ lệ. Trên thanh công cụ: ⌄ cạnh nút Bảng → Bài giảng.");
-            p.Note("5. Cần in hoặc gửi cho người không dùng Phấn Trắng: “Xuất PDF” gộp tất cả các trang vào một tệp PDF.");
-            var recent = Settings.RecentLessons;
-            if (recent.Count == 0) return;
-            p.Heading("Mở gần đây");
-            foreach (var path in recent)
+            if (ppt)
             {
-                string file = path;
-                var link = new LinkLabel { Text = Path.GetFileNameWithoutExtension(file), AutoSize = true, Font = Ui.Body(k), LinkColor = Theme.Green, ActiveLinkColor = Theme.Green, Margin = new Padding(0, Px(2), 0, Px(6)), UseMnemonic = false };
-                link.LinkClicked += (s, e) => app.OpenLesson(file);
-                p.Add(link);
+                p.Note("4. Trình chiếu: “Xuất PowerPoint” tạo bài mới, mỗi trang bảng là một trang chiếu. “Thêm vào PowerPoint có sẵn” đặt các trang vào cuối bài thầy cô đang có.");
+                p.Note("5. In hoặc gửi: “Xuất PDF” gộp tất cả các trang vào một tệp PDF. Trên thanh công cụ: ⌄ cạnh nút Bảng → Bài giảng.");
+                p.Note("Có sẵn bài PowerPoint? “Mở bài PowerPoint” biến mỗi trang chiếu thành một trang bảng để viết, chấm lên. Cần PowerPoint hoặc WPS trên máy; tệp gốc không bị sửa.");
             }
+            else
+            {
+                p.Note("4. In hoặc gửi: “Xuất PDF” gộp tất cả các trang vào một tệp PDF; “Xuất ảnh” lưu mỗi trang thành một ảnh. Trên thanh công cụ: ⌄ cạnh nút Bảng → Bài giảng.");
+            }
+            p.Note("Các trang được xuất dưới dạng ảnh. Khi tắt Phấn Trắng hoặc soạn bài mới, các trang đang có được tự lưu: mở lại ở khay hệ thống › Bài giảng › Bản tự lưu.");
         }
 
         static string VersionText

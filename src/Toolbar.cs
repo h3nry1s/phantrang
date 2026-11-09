@@ -108,26 +108,129 @@ namespace PhanTrang
         double opacity, wantOpacity;
 
         // sizes in pixels at the current scale
-        int btnW, btnH, spacing, inset, dividerW, trayH, rowGap, noticeH, chevronW;
+        int btnW, btnH, spacing, inset, dividerW, trayH, rowGap, noticeH, chevronW, gripW;
+
+        // dragging the bar by its grip (or any empty part of the tray)
+        bool dragging, dragMoved;
+        POINT dragFrom;
+        int dragBaseX, dragBaseY;
+        int shiftX, shiftY;          // pixels from the usual place, from the settings
+        bool shiftLoaded;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern IntPtr SetCapture(IntPtr hwnd);
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool ReleaseCapture();
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
+
+        /// <summary>Whether the left button (as the app sees it) is physically down. Presses on the bar are not hidden from Windows, so this is reliable here.</summary>
+        static bool LeftButtonDown { get { return Win32.KeyDown(GetSystemMetrics(23 /* SM_SWAPBUTTON */) != 0 ? 0x02 : 0x01); } }
 
         public Toolbar()
         {
             glass.Received += m =>
             {
-                if (m.Msg != Win32.Wm.LButtonUp) return;
                 long lp = m.LParam.ToInt64();
-                Click((short)(lp & 0xFFFF), (short)((lp >> 16) & 0xFFFF));
+                int x = (short)(lp & 0xFFFF), y = (short)((lp >> 16) & 0xFFFF);
+                if (m.Msg == Win32.Wm.LButtonDown) StartDrag(x, y);
+                else if (m.Msg == Win32.Wm.LButtonUp)
+                {
+                    bool wasDrag = dragging;
+                    EndDrag();
+                    if (!wasDrag) Click(x, y);
+                }
             };
         }
 
         int Px(double v) { return (int)Math.Round(v * k); }
         bool Labels { get { return Settings.ToolbarLabels; } }
-        int Left { get { return work.Left + (work.Width - buf.W) / 2; } }
-        int Top { get { return work.Bottom - buf.H - (int)(10 * k); } }
+        int HomeLeft { get { return work.Left + (work.Width - buf.W) / 2; } }
+        int HomeTop { get { return work.Bottom - buf.H - (int)(10 * k); } }
+
+        /// <summary>The trays that are showing: the bar, plus the choices row when it is open.</summary>
+        Rectangle Visible
+        {
+            get
+            {
+                var r = main.Tray;
+                if (openChoices != null && !choices.Tray.IsEmpty) r = Rectangle.Union(r, choices.Tray);
+                return r;
+            }
+        }
+
+        /// <summary>The usual place moved by the teacher's shift, kept inside the work area.</summary>
+        int Left
+        {
+            get
+            {
+                int x = HomeLeft + shiftX;
+                var v = Visible;
+                x = Math.Min(x, work.Right - v.Right - 4);
+                return Math.Max(x, work.Left - v.Left + 4);
+            }
+        }
+
+        int Top
+        {
+            get
+            {
+                int y = HomeTop + shiftY;
+                var v = Visible;
+                y = Math.Min(y, work.Bottom - v.Bottom - 4);
+                return Math.Max(y, work.Top - v.Top + 4);
+            }
+        }
 
         public bool ChoicesOpen { get { return openChoices != null; } }
         public string OpenChoices { get { return openChoices; } }
-        public bool Revealed { get { return wantOpacity > 0; } }
+        /// <summary>Fully shown (not hidden and not dimmed while drawing): only then do its buttons take clicks.</summary>
+        public bool Revealed { get { return wantOpacity >= 0.99; } }
+        public bool Dragging { get { return dragging; } }
+
+        void LoadShift()
+        {
+            shiftX = (int)Math.Round(Settings.ToolbarShiftX * work.Width);
+            shiftY = (int)Math.Round(Settings.ToolbarShiftY * work.Height);
+            shiftLoaded = true;
+        }
+
+        /// <summary>A press on the grip or on an empty part of the bar starts moving it.</summary>
+        void StartDrag(int x, int y)
+        {
+            if (buf == null || !active) return;
+            if (!main.Tray.Contains(x, y) || Find(x, y) != null) return;
+            dragging = true;
+            dragMoved = false;
+            dragFrom = Win32.CursorPos();
+            dragBaseX = Left - HomeLeft;   // start from where it really is (it may be held in by the screen edge)
+            dragBaseY = Top - HomeTop;
+            SetCapture(glass.Handle);   // the release comes back here even if the mouse has left the bar by then
+        }
+
+        /// <summary>Follows the mouse while dragging (called every frame).</summary>
+        public void Drag()
+        {
+            if (!dragging || buf == null) return;
+            if (!LeftButtonDown) { EndDrag(); return; }   // the release went somewhere else: stop following the mouse
+            var p = Win32.CursorPos();
+            int dx = p.X - dragFrom.X, dy = p.Y - dragFrom.Y;
+            if (!dragMoved && dx * dx + dy * dy < 9) return;
+            dragMoved = true;
+            shiftX = dragBaseX + dx;
+            shiftY = dragBaseY + dy;
+            if (onScreen) Present();
+        }
+
+        /// <summary>Lets go of the bar and remembers where it is.</summary>
+        public void EndDrag()
+        {
+            if (!dragging) return;
+            dragging = false;
+            ReleaseCapture();
+            if (!dragMoved || buf == null) return;
+            shiftX = Left - HomeLeft;
+            shiftY = Top - HomeTop;
+            Settings.ToolbarShiftX = work.Width > 0 ? shiftX / (double)work.Width : 0;
+            Settings.ToolbarShiftY = work.Height > 0 ? Math.Min(0, shiftY / (double)work.Height) : 0;
+        }
 
         RECT OnScreen(Rectangle r) { return new RECT(Left + r.Left, Top + r.Top, Left + r.Right, Top + r.Bottom); }
 
@@ -146,14 +249,26 @@ namespace PhanTrang
 
         /// <summary>The highest point of the toolbar on screen, for placing a window just above it.</summary>
         public int ScreenTop { get { return buf == null ? work.Bottom : Top + (openChoices != null ? choices.Tray.Top : main.Tray.Top); } }
+        public int ScreenBottom { get { return buf == null ? work.Bottom : Top + main.Tray.Bottom; } }
 
         /// <summary>Whether the mouse is close enough that a hidden toolbar should come back.</summary>
         public bool Near(int x, int y)
         {
             if (buf == null) return false;
             var top = openChoices != null ? choices.Tray.Top : main.Tray.Top;
+            // below the bar: down to the screen edge when it sits low, else a margin like the one above it
+            int bottom = Top + main.Tray.Bottom + Px(90);
+            if (bottom >= work.Bottom - Px(120)) bottom = work.Bottom + 4;
             return x >= Left + main.Tray.Left - Px(80) && x < Left + main.Tray.Right + Px(80)
-                && y >= Top + top - Px(90) && y < work.Bottom + 4;
+                && y >= Top + top - Px(90) && y < bottom;
+        }
+
+        /// <summary>Takes the place from the settings again (after "Đặt lại vị trí").</summary>
+        public void ReloadPlace()
+        {
+            if (dragging || work.Width <= 0) return;
+            LoadShift();
+            if (onScreen) Present();
         }
 
         public void CloseChoices() { if (openChoices != null) { openChoices = null; Rebuild(); } }
@@ -164,9 +279,10 @@ namespace PhanTrang
 
         public void Place(RECT workArea, double scale)
         {
-            if (buf != null && workArea.SameAs(work) && Math.Abs(scale - dpiScale) < 0.01) return;
+            if (buf != null && shiftLoaded && workArea.SameAs(work) && Math.Abs(scale - dpiScale) < 0.01) return;
             work = workArea;
             dpiScale = scale;
+            LoadShift();
             Rebuild();
         }
 
@@ -182,6 +298,7 @@ namespace PhanTrang
             rowGap = Px(10);
             noticeH = Px(34);
             chevronW = Px(18);
+            gripW = Px(16);
             trayH = btnH + 2 * inset;
         }
 
@@ -207,14 +324,14 @@ namespace PhanTrang
 
         List<int> Widths(Row row, Graphics measure, Font inline) { return row.Buttons.Select(b => WidthOf(b, measure, inline)).ToList(); }
 
-        int RowWidth(List<int> widths) { return widths.Count == 0 ? 0 : 2 * inset + widths.Sum() + spacing * (widths.Count - 1); }
+        int RowWidth(List<int> widths, bool grip = false) { return widths.Count == 0 ? 0 : 2 * inset + widths.Sum() + spacing * (widths.Count - 1) + (grip ? gripW : 0); }
 
         /// <summary>Lays the buttons of 'row' left to right inside a tray at (x, y).</summary>
-        void Lay(Row row, List<int> widths, int x, int y)
+        void Lay(Row row, List<int> widths, int x, int y, bool grip = false)
         {
-            row.Tray = new Rectangle(x, y, RowWidth(widths), trayH);
+            row.Tray = new Rectangle(x, y, RowWidth(widths, grip), trayH);
             row.Boxes.Clear();
-            int at = x + inset;
+            int at = x + inset + (grip ? gripW : 0);
             foreach (int w in widths) { row.Boxes.Add(new Rectangle(at, y + inset, w, btnH)); at += w + spacing; }
         }
 
@@ -231,19 +348,19 @@ namespace PhanTrang
             using (var scratch = new Bitmap(1, 1))
             using (var g = Graphics.FromImage(scratch))
             {
-                k = dpiScale;
+                k = dpiScale * Settings.ToolbarSizeFactor;
                 for (int attempt = 0; ; attempt++)
                 {
                     Measure();
                     using (var f = InlineFont()) { mainW = Widths(main, g, f); choiceW = Widths(choices, g, f); }
-                    int room = Math.Max(200, work.Width - (int)(24 * dpiScale)), need = RowWidth(mainW);
+                    int room = Math.Max(200, work.Width - (int)(24 * dpiScale)), need = RowWidth(mainW, true);
                     if (need <= room || attempt == 1) break;
-                    k = dpiScale * room / need;   // one more pass at the scale that fits
+                    k = k * room / need;   // one more pass at the scale that fits
                 }
                 if (coachText != null) noticeW = (int)Math.Ceiling(CoachWidth(g));
             }
 
-            int W = Math.Max(Math.Max(RowWidth(mainW), RowWidth(choiceW)), noticeW) + 8;
+            int W = Math.Max(Math.Max(RowWidth(mainW, true), RowWidth(choiceW)), noticeW) + 8;
             int H = 2 * trayH + 2 * rowGap + noticeH + 8;
             if (buf == null || buf.W != W || buf.H != H)
             {
@@ -251,7 +368,7 @@ namespace PhanTrang
                 buf = new PixelBuffer(W, H);
             }
 
-            Lay(main, mainW, (W - RowWidth(mainW)) / 2, H - trayH - 4);
+            Lay(main, mainW, (W - RowWidth(mainW, true)) / 2, H - trayH - 4, true);
             choices.Boxes.Clear();
             choices.Tray = Rectangle.Empty;
             if (choices.Buttons.Count > 0)
@@ -298,6 +415,7 @@ namespace PhanTrang
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // text sits on the opaque cream tray
 
             PaintTray(g, main.Tray);
+            PaintGrip(g, main.Tray);
             PaintRow(g, main);
             bool tipShown = false;
             if (choices.Buttons.Count > 0)
@@ -308,6 +426,16 @@ namespace PhanTrang
             tipShown = PaintTip(g);
             if (!tipShown && choices.Buttons.Count == 0 && coachText != null) PaintCoach(g);
             if (active && onScreen) Present();
+        }
+
+        /// <summary>Six dots at the left end of the bar: hold and drag to move the bar.</summary>
+        void PaintGrip(Graphics g, Rectangle tray)
+        {
+            float cx = tray.Left + inset + gripW / 2f - Px(1), cy = tray.Top + tray.Height / 2f, d = Math.Max(2.5f, (float)(3.2 * k)), gap = (float)(6 * k);
+            using (var b = new SolidBrush(Theme.LineStrong))
+                for (int col = 0; col < 2; col++)
+                    for (int row = -1; row <= 1; row++)
+                        g.FillEllipse(b, cx + (col - 0.5f) * gap - d / 2, cy + row * gap - d / 2, d, d);
         }
 
         /// <summary>The tinted tray behind the mode tabs and the green chip behind the board buttons.</summary>
@@ -523,7 +651,7 @@ namespace PhanTrang
         public void Hover(int screenX, int screenY)
         {
             if (buf == null) return;
-            var s = active ? Find(screenX - Left, screenY - Top) : null;
+            var s = active && Revealed ? Find(screenX - Left, screenY - Top) : null;
             if (s == null ? hover == null : s.Same(hover)) return;
             hover = s;
             // a button newly under the mouse shows its name once; resting there does not repeat it
@@ -534,9 +662,10 @@ namespace PhanTrang
 
         // ---- showing and fading ----
 
-        public void Reveal(bool show)
+        /// <summary>Shows the bar fully, or (not shown) fades it to dimTo: 0 hides it, a little keeps it faintly in view while drawing.</summary>
+        public void Reveal(bool show, double dimTo = 0)
         {
-            wantOpacity = show ? 1 : 0;
+            wantOpacity = show ? 1 : Math.Max(0, Math.Min(0.8, dimTo));
             if (!show && openChoices != null) { openChoices = null; Rebuild(); }
         }
 
@@ -545,6 +674,7 @@ namespace PhanTrang
         public void Hide()
         {
             active = false;
+            dragging = false;
             openChoices = null;
             opacity = wantOpacity = 0;
             glass.Hide();

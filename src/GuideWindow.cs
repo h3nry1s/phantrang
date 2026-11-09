@@ -24,7 +24,8 @@ namespace PhanTrang
             new[] { "modes", "Bốn chế độ", "mode:write" },
             new[] { "type", "Gõ chữ & toán", "type" },
             new[] { "board", "Bảng & trang", "board" },
-            new[] { "lesson", "Bài giảng soạn sẵn", "newlesson" },
+            new[] { "lesson", "Bài giảng & xuất tệp", "newlesson" },
+            new[] { "class", "Lớp học", "class" },
             new[] { "keys", "Phím tắt", "keyboard" },
         };
 
@@ -142,8 +143,8 @@ namespace PhanTrang
                 case "start":
                     h("Bắt đầu");
                     lead("Phấn Trắng phủ một lớp trong suốt lên màn hình đang chiếu. Thầy cô chỉ bài, viết, chấm bài ngay trên slide hoặc trên bảng xanh. Tắt đi là màn hình trở lại như cũ.");
-                    row("power", "Bật và tắt", "Nhấn " + toggle + ", bấm nút tròn ở góc dưới màn hình, hoặc bấm biểu tượng Phấn Trắng ở khay hệ thống.");
-                    row("collapse", "Thanh công cụ ở đáy màn hình", "Mọi công cụ nằm ở đây. Bấm ⌄ ở cuối thanh để thu gọn khi cần nhìn trọn slide.");
+                    row("power", "Bật và tắt", "Nhấn " + toggle + ", bấm nút tròn ở góc dưới màn hình, hoặc bấm biểu tượng Phấn Trắng ở khay hệ thống rồi chọn “Bắt đầu dạy”. Muốn thoát hẳn, bấm biểu tượng ở khay hệ thống rồi chọn “Thoát Phấn Trắng”.");
+                    row("collapse", "Thanh công cụ ở đáy màn hình", "Mọi công cụ nằm ở đây. Giữ 6 chấm ở đầu thanh để kéo đi chỗ khác. Bấm ⌄ ở cuối thanh để thu gọn khi cần nhìn trọn slide.");
                     row("exit", "Tắt nhanh bằng Esc", "Nét vẽ trên slide sẽ được xoá. Các trang bảng vẫn được giữ lại.");
                     tip("Chưa nhớ nút nào làm gì? Rê chuột lên nút, tên nút hiện mờ trong chốc lát.");
                     break;
@@ -159,7 +160,8 @@ namespace PhanTrang
                 case "type":
                     h("Gõ chữ & ký hiệu toán");
                     lead("Không cần viết bằng chuột: gõ bàn phím, chữ hiện lên như viết tay.");
-                    steps(new[] { "Chọn Viết, rồi Gõ chữ.", "Bấm vào chỗ muốn viết trên màn hình.", "Gõ trong khung “Gõ lên bảng”. Nhấn Enter để xuống dòng." });
+                    steps(new[] { "Chọn Viết, rồi Gõ chữ.", "Bấm vào dòng kẻ mờ muốn viết, khung vàng cho biết chữ sẽ nằm ở đâu.", "Gõ trong khung “Gõ lên bảng”. Nhấn Enter để xuống dòng." });
+                    row("open", "Khung gõ che chỗ viết?", "Kéo khung ở chỗ trống (chữ “Gõ lên bảng”) sang chỗ khác; kéo góc dưới bên phải để to hoặc nhỏ lại.");
                     row("type", "5 kiểu chữ", "Chữ phấn, Tròn tiểu học, Nét nghiêng, Bút lông, Chữ in rõ. Chọn cỡ chữ và màu phấn ngay trong khung gõ.");
                     keys("Gõ tắt ký hiệu toán", new[]
                     {
@@ -177,17 +179,43 @@ namespace PhanTrang
                     tip("Trên bảng xanh và bảng đen, mực tối tự đổi thành phấn trắng để cuối lớp vẫn đọc rõ.");
                     break;
                 case "lesson":
-                    h("Bài giảng soạn sẵn");
-                    lead("Soạn trước các trang bảng ở nhà. Lên lớp chỉ việc mở ra và chuyển trang.");
-                    steps(new[]
+                    h("Bài giảng & xuất tệp");
+                    if (TeacherApp.PowerPointOn)
                     {
-                        "Bấm ⌄ cạnh nút Bảng → Bài giảng → Bài mới.",
-                        "Gõ chữ, vẽ, đóng dấu như lúc dạy. Bấm + để thêm trang.",
-                        "Bài giảng → Lưu bài. Bài được lưu thành tệp .phantrang, chép USB hay gửi Zalo đều được.",
-                        "Trên lớp: Bài giảng → Mở bài, rồi chuyển trang bằng ‹ ›.",
-                    });
+                        lead("Soạn các trang bảng, rồi xuất ra PowerPoint để trình chiếu hoặc PDF để in.");
+                        steps(new[]
+                        {
+                            "Bấm ⌄ cạnh nút Bảng → Bài giảng → Bài mới.",
+                            "Gõ chữ, vẽ, đóng dấu như lúc dạy. Bấm + để thêm trang.",
+                            "Bài giảng → PowerPoint: mỗi trang bảng thành một trang chiếu trong bài mới.",
+                            "Hoặc Bài giảng → Thêm vào PPT: chọn bài PowerPoint có sẵn, các trang được thêm vào cuối.",
+                        });
+                        row("open", "Mở PPT", "Mở bài PowerPoint có sẵn: mỗi trang chiếu thành một trang bảng để viết, chấm, đóng dấu lên. Cần PowerPoint hoặc WPS trên máy; tệp gốc không bị sửa.");
+                    }
+                    else
+                    {
+                        lead("Soạn các trang bảng, rồi xuất ra PDF để in hoặc thành ảnh để gửi.");
+                        steps(new[]
+                        {
+                            "Bấm ⌄ cạnh nút Bảng → Bài giảng → Bài mới.",
+                            "Gõ chữ, vẽ, đóng dấu như lúc dạy. Bấm + để thêm trang.",
+                            "Bài giảng → Xuất PDF hoặc Xuất ảnh.",
+                        });
+                    }
+                    row("pdf", "Xuất PDF", "Cả bài vào một tệp PDF để in hoặc gửi.");
                     row("image", "Xuất ảnh", "Mỗi trang thành một ảnh PNG, tiện gửi cho học sinh ôn bài.");
-                    tip("Quên lưu? Khi tắt Phấn Trắng, các trang được tự lưu. Mở lại ở khay hệ thống → Bài giảng soạn sẵn → Bài đang soạn dở.");
+                    tip("Các trang được xuất dưới dạng ảnh. Khi tắt Phấn Trắng, các trang được tự lưu: mở lại ở khay hệ thống → Bài giảng → Bài đang soạn dở.");
+                    break;
+                case "class":
+                    h("Lớp học");
+                    lead("Nút Lớp học trên thanh công cụ: đồ dùng cho cả lớp cùng nhìn lên màn chiếu.");
+                    row("timer", "Đếm ngược", "Chọn 30 giây đến 15 phút, thêm bớt từng 10 giây hoặc 1 phút. Hết giờ có chuông.");
+                    row("picker", "Gọi tên", "Bấm Quay để gọi ngẫu nhiên. Ai cũng được gọi một lần rồi mới quay lại từ đầu.");
+                    row("groups", "Chia nhóm", "Chọn số nhóm rồi bấm Chia nhóm. Bấm “→ Thi đua” để các nhóm thành đội thi đua.");
+                    row("contest", "Thi đua", "Bấm + hoặc − dưới mỗi tổ. Đội dẫn đầu đội vương miện.");
+                    row("ruler", "Thước, ê-ke, đo góc", "Kéo để dời, kéo núm vàng để xoay (giữ Shift: mỗi nấc 15°). Vẽ bằng bút sát mép thước thành đường thẳng.");
+                    row("compass", "Com-pa", "Kéo đầu phấn để vẽ cung tròn, kéo chân com-pa để mở rộng, kéo mũi kim để dời.");
+                    tip("Danh sách lớp: gõ mỗi dòng một tên hoặc mở tệp .txt, .csv, Excel. Danh sách chỉ lưu trên máy này. Kéo góc dưới bên phải để phóng to thẻ, hoặc bấm nút phóng to trên đầu thẻ.");
                     break;
                 default:
                     h("Phím tắt");

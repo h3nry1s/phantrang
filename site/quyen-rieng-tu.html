@@ -24,19 +24,29 @@ h2 { color: #22201C; font-size: 21px; margin: 32px 0 8px; }
 <main>
   <a class="brand" href="https://phantrang.org/"><img src="img/logo.png" alt="">Phấn Trắng</a>
   <h1>Chính sách quyền riêng tư</h1>
-  <p class="meta">Áp dụng cho ứng dụng Phấn Trắng trên Windows (bản tải từ GitHub và bản trên Microsoft Store). Cập nhật ngày 08/11/2026.</p>
+  <p class="meta">Áp dụng cho ứng dụng Phấn Trắng trên Windows (bản tải từ GitHub và bản trên Microsoft Store). Cập nhật ngày 09/11/2026.</p>
 
-  <p>Phấn Trắng là công cụ giảng dạy chạy hoàn toàn trên máy tính của thầy cô. Ứng dụng <b>không thu thập, không gửi đi và không bán</b> bất kỳ dữ liệu nào.</p>
+  <p>Phấn Trắng là công cụ giảng dạy chạy trên máy tính của thầy cô. Ứng dụng <b>không thu thập dữ liệu cá nhân và không bán</b> bất kỳ dữ liệu nào. Điều duy nhất được gửi qua mạng là số liệu sử dụng ẩn danh mô tả dưới đây, và thầy cô tắt được bất cứ lúc nào.</p>
 
-  <h2>Ứng dụng không kết nối Internet</h2>
-  <p>Phấn Trắng không có tài khoản, không quảng cáo, không đo lường hay thống kê sử dụng, không tự cập nhật qua mạng. Ứng dụng hoạt động bình thường khi máy không có mạng.</p>
+  <h2>Số liệu sử dụng ẩn danh</h2>
+  <p>Để biết có bao nhiêu máy đang dùng Phấn Trắng và công cụ nào nên cải thiện, khi máy có mạng ứng dụng gửi về máy chủ của Phấn Trắng (trên Cloudflare) đúng những thông tin sau:</p>
+  <ul>
+    <li>một <b>mã ngẫu nhiên</b> tạo ra trên máy lần đầu gửi, chỉ để đếm số máy không trùng nhau. Mã này không gắn với tên, tài khoản, tên máy hay phần cứng;</li>
+    <li><b>phiên bản</b> Phấn Trắng, bản <b>Microsoft Store</b> hay bản <b>tải về</b>, và <b>phiên bản Windows</b>;</li>
+    <li><b>số lần dùng mỗi công cụ</b>, ví dụ “Vẽ tay: 5 lần”, “Xuất PDF: 1 lần”, “Gọi tên: 3 lần”.</li>
+  </ul>
+  <p>Phấn Trắng <b>không gửi</b> tên thầy cô hay học sinh, danh sách lớp, nội dung viết, gõ hay vẽ, ảnh, tên tệp hay đường dẫn. Máy chủ không lưu địa chỉ IP; chỉ ghi nhận quốc gia (do Cloudflare suy ra) để biết ứng dụng được dùng ở đâu. Số liệu chỉ dùng để cải thiện Phấn Trắng, không chia sẻ hay bán cho ai.</p>
+  <p>Tính năng này bật sẵn. Để tắt: <b>Cài đặt › Chung › Gửi số liệu sử dụng ẩn danh</b> (hoặc bỏ chọn ở màn hình chào lần đầu). Khi tắt, ứng dụng không gửi gì nữa và xoá mã ngẫu nhiên trên máy. Máy không có mạng thì không gửi gì, ứng dụng vẫn chạy bình thường.</p>
+
+  <h2>Không tài khoản, không quảng cáo</h2>
+  <p>Phấn Trắng không có tài khoản, không quảng cáo, không tự cập nhật qua mạng.</p>
 
   <h2>Dữ liệu được lưu ở đâu</h2>
   <p>Mọi thứ chỉ nằm trên máy của thầy cô:</p>
   <ul>
     <li><b>Cài đặt</b> (kiểu con trỏ, màu mực, phím tắt…) và <b>nhật ký lỗi</b> trong thư mục <code>%APPDATA%\PhanTrang</code>.</li>
-    <li><b>Bài giảng tự lưu</b> (các trang bảng chưa lưu khi tắt ứng dụng) cũng trong thư mục đó.</li>
-    <li><b>Bài giảng, ảnh và tệp PDF</b> thầy cô chủ động lưu hay xuất ra nằm ở thư mục do thầy cô chọn.</li>
+    <li><b>Bản tự lưu</b> các trang bảng (khi tắt ứng dụng hoặc soạn bài mới) và <b>danh sách lớp</b> dùng cho Gọi tên, Chia nhóm cũng trong thư mục đó, không gửi đi đâu.</li>
+    <li><b>Ảnh và tệp PDF</b> thầy cô xuất ra nằm ở thư mục do thầy cô chọn.</li>
   </ul>
   <p>Gỡ ứng dụng và xoá thư mục <code>%APPDATA%\PhanTrang</code> là xoá hết dữ liệu của Phấn Trắng.</p>
 

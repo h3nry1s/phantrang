@@ -27,11 +27,27 @@ namespace PhanTrang
             tray.Text = "Phấn Trắng – bảng xanh trên mọi màn hình";
             tray.Visible = true;
             tray.ContextMenuStrip = menu;
-            tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) Toggle(); };
+            tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) ShowTrayMenu(); };   // left or right: the same menu
             tray.BalloonTipClicked += (s, e) => ShowSettings();
             menu.Renderer = new PaperMenuRenderer();
             menu.Opening += (s, e) => { FillMenu(); MenuShown(true); };
             menu.Closed += (s, e) => MenuShown(false);
+        }
+
+        /// <summary>
+        /// Opens the tray menu as a right click would. NotifyIcon only does that itself for the right button; its own
+        /// (private) way also brings the menu to the front so that clicking elsewhere closes it, so it is used when
+        /// present, with a plain Show at the pointer as the fallback.
+        /// </summary>
+        void ShowTrayMenu()
+        {
+            try
+            {
+                var show = typeof(NotifyIcon).GetMethod("ShowContextMenu", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                if (show != null) { show.Invoke(tray, null); return; }
+            }
+            catch (Exception e) { Log.Write("mở menu khay: " + e.Message); }
+            menu.Show(Cursor.Position);
         }
 
         void MenuShown(bool open)
@@ -104,9 +120,15 @@ namespace PhanTrang
         }
 
         /// <summary>Menus rebuild on every opening: free the icons and fonts of the previous one.</summary>
+        /// <remarks>
+        /// The items are taken out of the menu first. Freeing them while still in it made the menu lay itself out again
+        /// after every one, measuring text of items already disposed ("Parameter is not valid" in the log).
+        /// </remarks>
         static void Release(ToolStripItemCollection items)
         {
-            foreach (ToolStripItem item in items.Cast<ToolStripItem>().ToList())
+            var list = items.Cast<ToolStripItem>().ToList();
+            items.Clear();
+            foreach (var item in list)
             {
                 var sub = item as ToolStripMenuItem;
                 if (sub != null && sub.HasDropDownItems) Release(sub.DropDownItems);
@@ -115,7 +137,6 @@ namespace PhanTrang
                 if (img != null) img.Dispose();
                 item.Dispose();
             }
-            items.Clear();
         }
 
         /// <summary>The tray menu, kept short: on/off, the board and lessons, then settings, the guide and quit.</summary>
@@ -140,6 +161,7 @@ namespace PhanTrang
             menu.Items.Add(power);
             menu.Items.Add(Entry(on && Stage.Book.OnBoard ? "Đóng bảng" : "Mở bảng", ToggleBoard, "board", ShortcutText(Settings.BoardKey)));
             menu.Items.Add(LessonMenu());
+            menu.Items.Add(ClassMenu());
             if (on && Stage.HasInk) menu.Items.Add(Entry("Xoá hết nét", ClearInk, "clear", ShortcutText(Settings.ClearKey)));
 
             menu.Items.Add(new ToolStripSeparator());
@@ -154,29 +176,32 @@ namespace PhanTrang
 
         ToolStripMenuItem LessonMenu()
         {
-            var lesson = Entry("Bài giảng soạn sẵn", null, "newlesson");
+            var lesson = Entry("Bài giảng", null, "newlesson");
             lesson.DropDown.Renderer = menu.Renderer;
             lesson.DropDown.Font = menu.Font;
             var items = lesson.DropDownItems;
             bool any = Stage.Book.HasLesson;
             items.Add(Entry("Soạn bài mới", NewLesson, "newlesson"));
-            items.Add(Entry("Mở bài giảng…", () => OpenLesson(null), "open"));
-            var save = Entry("Lưu bài đang mở…", () => SaveLesson(), "save"); save.Enabled = any; items.Add(save);
+            if (PowerPointOn) items.Add(Entry("Mở bài PowerPoint để viết lên…", OpenPptx, "open"));
             items.Add(Entry("Thêm ảnh vào trang…", AddImage, "addimage"));
-            var pdf = Entry("Xuất bài giảng thành PDF…", ExportPdf, "pdf"); pdf.Enabled = any; items.Add(pdf);
+            var pdf = Entry("Xuất thành PDF…", ExportPdf, "pdf"); pdf.Enabled = any; items.Add(pdf);
+            if (PowerPointOn)
+            {
+                var pptx = Entry("Xuất thành PowerPoint…", () => ExportPptx(false), "pptx"); pptx.Enabled = any; items.Add(pptx);
+                var addPptx = Entry("Thêm vào bài PowerPoint có sẵn…", () => ExportPptx(true), "addpptx"); addPptx.Enabled = any; items.Add(addPptx);
+            }
             var export = Entry("Xuất các trang thành ảnh…", ExportImages, "image"); export.Enabled = any; items.Add(export);
 
-            var recent = Settings.RecentLessons;
+            // spare copies Phấn Trắng saved by itself (when switched off, or before a new lesson)
             bool spare = File.Exists(Lesson.AutoSavePath);
             var earlier = Lesson.OlderAutoSaves().Take(3).ToList();
-            if (recent.Count > 0 || spare || earlier.Count > 0)
+            if (spare || earlier.Count > 0)
             {
                 items.Add(new ToolStripSeparator());
-                items.Add(Heading("Mở gần đây", "uiBold", 12, Theme.Green, Padding.Empty));
+                items.Add(Heading("Bản tự lưu", "uiBold", 12, Theme.Green, Padding.Empty));
             }
-            foreach (var path in recent) { string p = path; items.Add(Entry(Path.GetFileNameWithoutExtension(p), () => OpenLesson(p))); }
-            if (spare) items.Add(Entry("Bài đang soạn dở (tự lưu)", () => OpenLesson(Lesson.AutoSavePath)));
-            foreach (var e in earlier) { string p = e.Key; items.Add(Entry("Bản tự lưu " + e.Value.ToString("dd/MM HH:mm"), () => OpenLesson(p))); }
+            if (spare) items.Add(Entry("Bài đang soạn dở", () => OpenSpare(Lesson.AutoSavePath)));
+            foreach (var e in earlier) { string p = e.Key; items.Add(Entry("Bản tự lưu " + e.Value.ToString("dd/MM HH:mm"), () => OpenSpare(p))); }
             return lesson;
         }
 
@@ -229,6 +254,7 @@ namespace PhanTrang
         {
             AutoSave();
             TurnOffSafely();
+            Usage.Flush();
             gate.Stop();
             if (settingsWin != null && !settingsWin.IsDisposed) settingsWin.Close();
             tray.Visible = false;

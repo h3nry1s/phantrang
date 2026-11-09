@@ -56,7 +56,7 @@ $w.Close()
 $sources = Get-ChildItem (Join-Path $root 'src') -Filter *.cs | ForEach-Object { $_.FullName }
 & $csc /nologo /codepage:65001 /target:winexe /optimize+ /unsafe /platform:anycpu "/out:$dist\PhanTrang.exe" "/win32icon:$ico" `
     "/win32manifest:$root\src\app.manifest" `
-    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll $sources
+    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Xml.dll /r:System.Xml.Linq.dll $sources
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
 # Sign when a code-signing certificate is available (Certum SimplySign logged in, or PT_SIGN_THUMBPRINT set).

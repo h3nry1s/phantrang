@@ -24,6 +24,10 @@ namespace PhanTrang
         readonly ClickGate gate = new ClickGate();
         readonly HotKeyWindow hotKeys = new HotKeyWindow();
         readonly QuickButton quick = new QuickButton();
+        readonly HoldGuard holdGuard = new HoldGuard();
+        readonly RawMouse rawMouse = new RawMouse();
+        readonly GeoTools geo = new GeoTools();
+        readonly List<ClassCard> cards = new List<ClassCard>();
         readonly System.Windows.Forms.Timer frames = new System.Windows.Forms.Timer();
         public readonly Sounds Sounds = new Sounds();
 
@@ -35,6 +39,7 @@ namespace PhanTrang
         double lastFrame, lastMoved, showBarUntil, lastZoneScan = -1, lastRaise, quietUntil, lastGateCheck;
         int lastX = int.MinValue, lastY;
         int movePosted, gateRestarts;
+        double lastGateLog = -1000;
         RECT[] shellZones = new RECT[0];
         RECT work;
         double screenScale = 1;
@@ -50,6 +55,13 @@ namespace PhanTrang
         {
             ui.CreateControl();
             gate.Report = OnGate;
+            rawMouse.Button += (b, down) => { if (down) holdGuard.RawDown(b, Now); else holdGuard.RawUp(b, Now); };
+            gate.HoleTest = geo.Hit;
+            geo.ShiftHeld = () => ShiftDown;
+            geo.StrokeBegin = p => { if (!on) return; var at = new PointF(p.X - layer.Monitor.Left, p.Y - layer.Monitor.Top); Stage.EndAll(); Stage.BeginStroke(at, false); };
+            geo.StrokeTo = p => { if (on && Stage.IsDrawing) Stage.ExtendStroke(new PointF(p.X - layer.Monitor.Left, p.Y - layer.Monitor.Top)); };
+            geo.StrokeEnd = () => { if (!on) return; Stage.EndAll(); Refresh(); };
+            geo.Changed += () => { toolbar.Rebuild(); if (on) Frame(); };
 
             toolbar.MainButtons = MainButtons;
             toolbar.ChoiceButtons = ChoiceButtons;
@@ -67,6 +79,7 @@ namespace PhanTrang
             ApplySettings();
             quick.Clicked += () => Post(TurnOn);
             Startup(args);
+            Usage.Start();
         }
 
         /// <summary>Runs 'a' on the UI thread after 'ms' milliseconds.</summary>
@@ -97,10 +110,13 @@ namespace PhanTrang
             Stage.WidthFactor = Catalog.WidthFactor;
             Stage.FadeAfter = Settings.FadeSeconds;
             Stage.VanishAfter = Settings.VanishSeconds;
+            Stage.TypeLines = Settings.TypeLines;
             Stage.Invalidate();
             if (Stage.Typing && typePanel != null) Stage.ShowTyping(typePanel.Typed, Settings.TextFont, TypingPx);
             if (typePanel != null) typePanel.Refresh2();
+            if (typePanel != null && !typePanel.IsDisposed && Math.Abs(typePanel.SizeSetting - Settings.TypePanelSize) > 0.001) Post(RebuildTypePanel);
             toolbar.Rebuild();
+            toolbar.ReloadPlace();
             gate.BypassKey = Settings.InteractVk;
             UpdateQuickButton();
             if (on) { UpdateInput(); Frame(); }
@@ -212,6 +228,7 @@ namespace PhanTrang
                     "Phấn Trắng", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+            Usage.Count("on");
             on = true;
             if (MouseMode) Settings.Tool = "pointer";   // switching on means: show the chalk
             windowsPointer = false;
@@ -227,6 +244,7 @@ namespace PhanTrang
             BlankCursor.Apply();
             UpdateInput();
             Win32.timeBeginPeriod(1);
+            rawMouse.Start();
             lastFrame = lastMoved = lastGateCheck = Now;
             frames.Start();
             SetTrayIcon(true);
@@ -248,6 +266,7 @@ namespace PhanTrang
             gate.Capturing = false;
             gate.Stop();
             BindEscape(false);
+            rawMouse.Stop();
             BindEdit(false);
             leftHeld = rightHeld = false;
             Stage.EndAll();
@@ -255,6 +274,7 @@ namespace PhanTrang
             Stage.SetBoard("none");
             layer.Hide();
             toolbar.Hide();
+            geo.HideAll();
             BlankCursor.Lift();
             SetTrayIcon(false);
             UpdateQuickButton();
@@ -317,9 +337,10 @@ namespace PhanTrang
 
             string tool = Settings.Tool;
             if (button == 1 || tool == "pointer") { Stage.Look.Tap(at); Sounds.Tap(); }
-            if (button == 1) { rightHeld = true; Frame(); return; }
+            if (button == 1) { rightHeld = true; holdGuard.Pressed(1, Now); Frame(); return; }
 
             leftHeld = true;
+            holdGuard.Pressed(0, Now);
             pressedAt = at;
             switch (tool)
             {
@@ -329,7 +350,7 @@ namespace PhanTrang
                 case "type":
                     // the click chooses where the next line goes; a half-typed line is kept where it was
                     if (typePanel != null && typePanel.Typed.Trim().Length > 0) { Stage.CommitTyping(); typePanel.ClearText(); }
-                    Stage.Caret = new PointF(at.X, at.Y - TypingPx * 0.6f);
+                    Stage.Caret = new PointF(at.X, Settings.TypeLines ? Stage.SnapToLine(at.Y, TypingPx) : at.Y - TypingPx * 0.6f);
                     OpenTyping();
                     break;
             }
@@ -338,6 +359,8 @@ namespace PhanTrang
 
         void Released(int button)
         {
+            holdGuard.Released(button);
+            if (button == 0) toolbar.EndDrag();
             if (button == 0 && leftHeld) { leftHeld = false; Stage.EndAll(); toolbar.Rebuild(); }
             else if (button == 1) rightHeld = false;
             if (!leftHeld && !rightHeld) Stage.Look.Held = false;
@@ -368,6 +391,13 @@ namespace PhanTrang
                 case "draw":
                 case "hl":
                 case "vanish":
+                    if (geo.Any)
+                    {
+                        // a line started beside a ruler or a set square runs along its edge
+                        var m = layer.Monitor;
+                        var q = new PointF(at.X + m.Left, at.Y + m.Top);
+                        if (geo.Snap(new PointF(pressedAt.X + m.Left, pressedAt.Y + m.Top), ref q)) at = new PointF(q.X - m.Left, q.Y - m.Top);
+                    }
                     if (!Stage.IsDrawing && started) Stage.BeginStroke(pressedAt, tool == "hl", tool == "vanish");
                     if (Stage.IsDrawing) Stage.ExtendStroke(at);
                     break;
@@ -391,7 +421,7 @@ namespace PhanTrang
             {
                 lastZoneScan = now;
                 var zones = new List<RECT>(ShellZones.Scan());
-                foreach (var f in new Form[] { settingsWin, typePanel, welcome })
+                foreach (var f in Floating)
                 {
                     RECT r;
                     if (f != null && !f.IsDisposed && f.Visible && f.WindowState != FormWindowState.Minimized && Win32.GetWindowRect(f.Handle, out r)) zones.Add(r);
@@ -414,9 +444,26 @@ namespace PhanTrang
             // changed nothing, stop retrying rather than restarting the hook every second.
             if (now - lastMoved >= 0.5 || gate.SilentFor <= 1.5 || gateRestarts >= 3) return;
             gateRestarts++;
-            Log.Write("bộ bắt chuột không nhận được chuột, cài lại (lần " + gateRestarts + ")");
+            if (now - lastGateLog > 600) { lastGateLog = now; Log.Write("bộ bắt chuột không nhận được chuột, cài lại (lần " + gateRestarts + ")"); }
             if (!gate.Restart()) { Log.Write("cài lại bộ bắt chuột không được"); TurnOff(); }
             else UpdateInput();
+        }
+
+        /// <summary>
+        /// Ends a press whose release Windows never passed to the gate (see <see cref="HoldGuard"/>), so a line
+        /// never keeps following the mouse after the button is up.
+        /// </summary>
+        void CheckStuckButtons(double now)
+        {
+            for (int b = 0; b < 2; b++)
+            {
+                bool held = b == 0 ? leftHeld : rightHeld;
+                if (!held || !holdGuard.Stuck(b, now)) continue;
+                holdGuard.Released(b);
+                Log.Write("nút chuột đã nhả nhưng không được báo, tự kết thúc (nút " + b + ")");
+                int button = b;
+                Post(() => Released(button));
+            }
         }
 
         void Frame()
@@ -427,6 +474,7 @@ namespace PhanTrang
             var p = Win32.CursorPos();
             if (p.X != lastX || p.Y != lastY) { lastX = p.X; lastY = p.Y; lastMoved = now; }
             WatchGate(now);
+            CheckStuckButtons(now);
             if (!on) return;
 
             var screen = Win32.ScreenAt(p.X, p.Y);
@@ -444,6 +492,7 @@ namespace PhanTrang
 
             var zones = Zones(now);
             bool overZone = zones.Any(z => z.Contains(p.X, p.Y));
+            if (!overZone && geo.Hit(p.X, p.Y)) overZone = true;   // on a ruler or a protractor: the Windows pointer, to grab it
             // over the toolbar the Windows pointer comes back, so the chalk never hides the buttons
             if (toolbar.Revealed && toolbar.ScreenRects.Any(r => r.Contains(p.X, p.Y))) overZone = true;
 
@@ -457,7 +506,10 @@ namespace PhanTrang
                 if (wantWindowsPointer) BlankCursor.Lift(); else BlankCursor.Apply();
             }
 
-            toolbar.Reveal(Settings.ToolbarAlways || (!drawing && (toolbar.Near(p.X, p.Y) || now < showBarUntil)));
+            // while a line is being drawn the bar steps back: faint (or gone, if the teacher chose so) and not in the way of the chalk
+            toolbar.Drag();
+            bool barWanted = Settings.ToolbarAlways || toolbar.Dragging || toolbar.Near(p.X, p.Y) || now < showBarUntil;
+            toolbar.Reveal(barWanted && !drawing, barWanted ? Settings.ToolbarDim : 0);
             bool barMoving = toolbar.Animate(dt);
             toolbar.Hover(p.X, p.Y);
 
@@ -483,9 +535,10 @@ namespace PhanTrang
         {
             if (dialogOpen) return;   // the open/save dialog stays above the board
             layer.Raise();
-            foreach (var f in new Form[] { settingsWin, welcome, typePanel })
+            foreach (var f in Floating)
                 if (f != null && !f.IsDisposed && f.Visible && f.WindowState != FormWindowState.Minimized)
                     Win32.SetWindowPos(f.Handle, Win32.Topmost, 0, 0, 0, 0, Win32.Swp.KeepPlace);
+            geo.Raise();
             toolbar.Raise();
         }
     }

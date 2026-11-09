@@ -12,15 +12,15 @@ using System.Web.Script.Serialization;
 namespace PhanTrang
 {
     /// <summary>
-    /// A prepared lesson: the board pages saved to a .phantrang file (JSON). Positions are stored as a fraction
-    /// of the screen height, so a lesson made on a laptop opens at the right size on the classroom projector.
-    /// Lesson files travel between teachers (USB, Zalo), so reading treats them as untrusted: sizes and counts are
-    /// capped, every number is checked, and anything unexpected becomes a readable InvalidDataException.
+    /// The board pages of a lesson: exported as pictures (PNG, PDF, PowerPoint), and kept in a spare copy (JSON in
+    /// %APPDATA%\PhanTrang) when Phấn Trắng is switched off, so nothing is lost by mistake. Positions are stored as a
+    /// fraction of the screen height, so the spare opens at the right size on another screen. Reading still treats the
+    /// file as untrusted: sizes and counts are capped, every number is checked, and anything unexpected becomes a
+    /// readable InvalidDataException.
     /// </summary>
     public static class Lesson
     {
         public const string Ext = ".phantrang";
-        public const string Filter = "Bài giảng Phấn Trắng (*.phantrang)|*.phantrang";
         public static string AutoSavePath { get { return Path.Combine(Settings.Dir, "bai-dang-soan" + Ext); } }
         const string OlderPrefix = "bai-dang-soan-", OlderStamp = "yyyyMMdd-HHmmss";
         const int OlderKept = 5;
@@ -324,6 +324,26 @@ namespace PhanTrang
         /// </summary>
         public static int ExportPdf(string path, IList<Sheet> pages, int w, int h, string currentBoard, string title)
         {
+            var list = PageImages(pages, w, h, currentBoard);
+            PdfWriter.Write(path, list, 842, title);   // 842 pt = the long side of an A4 sheet
+            return list.Count;
+        }
+
+        /// <summary>
+        /// The lesson as PowerPoint slides, one picture per page: a new presentation, or (append) added after the
+        /// slides of an existing one. Returns how many slides were written.
+        /// </summary>
+        public static int ExportPptx(string path, IList<Sheet> pages, int w, int h, string currentBoard, bool append, string title)
+        {
+            var list = PageImages(pages, w, h, currentBoard);
+            if (append) return PptxWriter.Append(path, list);
+            PptxWriter.WriteNew(path, list, title);
+            return list.Count;
+        }
+
+        /// <summary>Every page worth exporting as a JPEG, at least <see cref="PdfMinHeight"/> pixels tall.</summary>
+        static List<PdfPage> PageImages(IList<Sheet> pages, int w, int h, string currentBoard)
+        {
             // small screens are drawn larger (positions are all relative to the height, so the page simply scales up)
             double k = Math.Max(1.0, PdfMinHeight / (double)Math.Max(1, h));
             int pw = (int)Math.Round(w * k), ph = (int)Math.Round(h * k);
@@ -340,8 +360,7 @@ namespace PhanTrang
                     list.Add(new PdfPage { Jpeg = ms.ToArray(), PixelWidth = pw, PixelHeight = ph });
                 }
             }
-            PdfWriter.Write(path, list, 842, title);   // 842 pt = the long side of an A4 sheet
-            return list.Count;
+            return list;
         }
     }
 }

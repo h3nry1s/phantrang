@@ -23,22 +23,26 @@ namespace PhanTrang
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Theme.Paper;
             k = DeviceDpi / 96f;
-            ClientSize = new Size(S(640), S(540));
+            ClientSize = new Size(S(640), S(580));
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
 
             Font = Ui.Body(k);
             // a Store copy cannot add itself to start-up (Windows Settings does that), so the box is not offered there
             var autostart = new CheckBox { Text = "Mở cùng Windows", Checked = true, AutoSize = true, Font = Ui.Body(k), ForeColor = Theme.Text, BackColor = Theme.Paper, UseMnemonic = false, Visible = !Settings.Packaged };
+            var stats = new CheckBox { Text = "Gửi số liệu sử dụng ẩn danh để cải thiện Phấn Trắng (không có tên, không có nội dung bài)", Checked = Settings.UsageStats, AutoSize = true, Font = Fonts.Get("ui", 12.5f * k), ForeColor = Theme.Dim, BackColor = Theme.Paper, UseMnemonic = false };
             var start = new RoundButton("Bắt đầu dạy", RoundButton.Kind.Primary, k) { BackColor = Theme.Paper };
             var settings = new RoundButton("Xem hướng dẫn", RoundButton.Kind.Secondary, k) { BackColor = Theme.Paper };
             int y = ClientSize.Height - S(32) - start.Height;
             start.Location = new Point(ClientSize.Width - S(44) - start.Width, y);
             settings.Location = new Point(start.Left - S(12) - settings.Width, y);
             autostart.Location = new Point(S(44), y + (start.Height - autostart.PreferredSize.Height) / 2);
+            stats.Location = new Point(S(44), y - S(40));
+            stats.CheckedChanged += (s, e) => Settings.UsageStats = stats.Checked;
             settings.Click += (s, e) => { Settings.LaunchAtLogin = autostart.Checked; Close(); if (OpenGuide != null) OpenGuide(); };
             start.Click += (s, e) => { Settings.LaunchAtLogin = autostart.Checked; Close(); if (StartTeaching != null) StartTeaching(); };
             Controls.Add(autostart);
+            Controls.Add(stats);
             Controls.Add(settings);
             Controls.Add(start);
             AcceptButton = null;
@@ -55,8 +59,10 @@ namespace PhanTrang
             var board = new Rectangle(0, 0, ClientSize.Width, S(170));
             using (var b = new SolidBrush(Theme.Board)) g.FillRectangle(b, board);
             using (var p = new Pen(Theme.Frame, S(8))) g.DrawRectangle(p, S(4), S(4), board.Width - S(8), board.Height - S(8));
-            using (var f = Fonts.Get("mali", S(34))) Ui.Text(g, "Chào thầy cô!", f, Theme.Chalk, new Rectangle(S(44), S(38), S(440), S(50)), TextFormatFlags.Left);
-            using (var f = Fonts.Get("mali", S(18))) Ui.Text(g, "Phấn Trắng đã sẵn sàng lên lớp.", f, Theme.Yellow, new Rectangle(S(44), S(92), S(440), S(30)), TextFormatFlags.Left);
+            // Mali's GDI line box is ~2.1 em tall (room for stacked Vietnamese marks), with the ink in its middle:
+            // give each line its full box so nothing is clipped, and place the boxes so the two lines sit centred on the board.
+            using (var f = Fonts.Get("mali", S(34))) Ui.Text(g, "Chào thầy cô!", f, Theme.Chalk, new Rectangle(S(44), S(27), S(440), S(72)), TextFormatFlags.Left | TextFormatFlags.SingleLine);
+            using (var f = Fonts.Get("mali", S(18))) Ui.Text(g, "Phấn Trắng đã sẵn sàng lên lớp.", f, Theme.Yellow, new Rectangle(S(44), S(90), S(440), S(38)), TextFormatFlags.Left | TextFormatFlags.SingleLine);
             var sp = Pointers.Get("chalk", S(120));
             g.DrawImage(sp.Shadow, S(540) - sp.Tip.X + S(6), S(120) - sp.Tip.Y + S(12));
             g.DrawImage(sp.Img, S(540) - sp.Tip.X, S(120) - sp.Tip.Y);

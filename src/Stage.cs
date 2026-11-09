@@ -419,6 +419,10 @@ namespace PhanTrang
         ShapeMark shape;
         List<Mark> wiped;
         TextMark typing;
+        RectangleF typingFrame;
+        float guideStep;
+        /// <summary>Faint ruled lines across the sheet while typing (the teacher can switch them off).</summary>
+        public bool TypeLines = true;
 
         public Stage() { Pictures = new PictureEditor(this); }
 
@@ -617,13 +621,56 @@ namespace PhanTrang
             typing.Pos = Caret;
             typing.Layout();
             Touch(typing.Bounds);
+            Touch(typingFrame);
+            typingFrame = LineFrame(typing);
+            Touch(typingFrame);
+            float step = TypeLines ? typing.LineHeight : 0;
+            if (step != guideStep) { guideStep = step; repaintAll = true; }
         }
 
         public void StopTyping()
         {
             if (typing == null) return;
             Touch(typing.Bounds);
+            Touch(typingFrame);
+            typingFrame = RectangleF.Empty;
+            if (guideStep > 0) { guideStep = 0; repaintAll = true; }
             typing = null;
+        }
+
+        /// <summary>Where the ruled lines start: the first line sits where typing starts on an empty sheet.</summary>
+        float GuideTop { get { return H * 0.08f; } }
+
+        /// <summary>The top of the ruled line a click at height y falls on (lines are one text line apart).</summary>
+        public float SnapToLine(float y, float px)
+        {
+            float step = Math.Max(1, px * 1.3f), top = GuideTop;
+            float row = (float)Math.Floor((y - top) / step);
+            float at = top + row * step;
+            while (at < 0) at += step;
+            return at;
+        }
+
+        /// <summary>A dashed box around the line being typed, like a text box in PowerPoint: it shows where the words go.</summary>
+        RectangleF LineFrame(TextMark t)
+        {
+            float pad = t.Px * 0.25f;
+            float right = Math.Max(t.Bounds.Right - 12, t.Pos.X + W * 0.3f);
+            right = Math.Min(right, W - 6);
+            return RectangleF.FromLTRB(Math.Max(2, t.Pos.X - pad), Math.Max(2, t.Pos.Y - t.Px * 0.12f), Math.Max(t.Pos.X + pad, right), Math.Min(H - 2, t.Pos.Y + t.LineHeight + t.Px * 0.05f));
+        }
+
+        void PaintGuides(Graphics g, Rectangle area)
+        {
+            if (typing == null) return;
+            float width = Math.Max(1f, H / 900f);
+            if (guideStep > 0)
+                using (var line = new Pen(Color.FromArgb(60, typing.Color), width) { DashPattern = new[] { 6f, 5f } })
+                    for (float y = GuideTop + typing.Px * 1.18f - guideStep * (float)Math.Floor(GuideTop / guideStep); y < H; y += guideStep)
+                        if (y >= area.Top - 2 && y <= area.Bottom + 2) g.DrawLine(line, 0, y, W, y);
+            if (typingFrame.Width > 0)
+                using (var box = new Pen(Color.FromArgb(170, Theme.Yellow), Math.Max(1.5f, width * 1.5f)) { DashPattern = new[] { 4f, 3f } })
+                    g.DrawRectangle(box, typingFrame.X, typingFrame.Y, typingFrame.Width, typingFrame.Height);
         }
 
         /// <summary>Puts the typed line on the sheet (undoable) and moves the caret one line down.</summary>
@@ -727,6 +774,7 @@ namespace PhanTrang
             g.InterpolationMode = InterpolationMode.Bilinear;
 
             double now = Clock.Now;
+            PaintGuides(g, area);
             foreach (var m in Current.Marks) if (m.Bounds.IntersectsWith(area)) m.Draw(g, now);
             if (typing != null) typing.Draw(g, now);
             Pictures.Paint(g, now);

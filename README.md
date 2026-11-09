@@ -14,7 +14,7 @@ Tải bản mới nhất ở trang **[Releases](https://github.com/h3nry1s/phant
 2. Mở tệp vừa tải, bấm **Cài đặt**. Không cần quyền quản trị, không cần mạng, không phải khởi động lại máy.
 3. Bấm **Mở Phấn Trắng**. Lần sau mở từ menu Start (hoặc biểu tượng trên màn hình nền nếu đã chọn).
 
-Gỡ cài đặt: **Cài đặt Windows › Ứng dụng › Phấn Trắng › Gỡ cài đặt**. Bài giảng và cài đặt của thầy cô trong `%APPDATA%\PhanTrang` được giữ lại.
+Gỡ cài đặt: **Cài đặt Windows › Ứng dụng › Phấn Trắng › Gỡ cài đặt**. Bản tự lưu và cài đặt của thầy cô trong `%APPDATA%\PhanTrang` được giữ lại.
 
 ### Cách 2: Bản chạy không cần cài (USB)
 
@@ -42,9 +42,9 @@ Kiểm tra tệp tải về đúng là bản phát hành: mã SHA-256 ghi trong 
 | Giữ `Alt` + bấm | Bấm thật vào slide, video, trang web |
 | `Esc` | Tắt Phấn Trắng |
 
-Thanh công cụ ở đáy màn hình có 4 chế độ: **Chuột**, **Chỉ**, **Viết**, **Chấm bài**. Menu **Bảng ⌄ › Bài giảng** để soạn, mở, lưu bài giảng (`.phantrang`) và xuất PDF. Hướng dẫn đầy đủ trong ứng dụng: chuột phải biểu tượng viên phấn ở khay hệ thống › **Hướng dẫn sử dụng**.
+Thanh công cụ ở đáy màn hình (giữ 6 chấm ở đầu thanh để kéo đi chỗ khác) có 4 chế độ: **Chuột**, **Chỉ**, **Viết**, **Chấm bài**. Menu **Bảng ⌄ › Bài giảng** để soạn các trang bảng rồi xuất thành **PDF** hay ảnh PNG. Nút **Lớp học** có đồng hồ đếm ngược, gọi tên ngẫu nhiên (danh sách gõ tay hoặc mở từ .txt, .csv, Excel), chia nhóm, bảng thi đua, cùng thước kẻ, thước đo góc, ê-ke và com-pa vẽ thẳng lên màn hình. Hướng dẫn đầy đủ trong ứng dụng: chuột phải biểu tượng viên phấn ở khay hệ thống › **Hướng dẫn sử dụng**.
 
-Phấn Trắng không kết nối Internet và không thu thập dữ liệu ([chính sách quyền riêng tư](https://phantrang.org/quyen-rieng-tu.html)). Nếu ứng dụng bị tắt đột ngột khi đang bật và con trỏ chuột biến mất, mở lại Phấn Trắng là con trỏ hiện lại.
+Phấn Trắng không thu thập dữ liệu cá nhân. Khi có mạng, ứng dụng chỉ gửi số liệu sử dụng ẩn danh (số máy, số lần dùng mỗi công cụ) để cải thiện sản phẩm; tắt được trong Cài đặt › Chung ([chính sách quyền riêng tư](https://phantrang.org/quyen-rieng-tu.html)). Nếu ứng dụng bị tắt đột ngột khi đang bật và con trỏ chuột biến mất, mở lại Phấn Trắng là con trỏ hiện lại.
 
 ## Tự build từ mã nguồn
 

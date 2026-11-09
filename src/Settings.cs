@@ -164,6 +164,7 @@ namespace PhanTrang
         public static bool Sound { get { return Flag("sound", true); } set { SetFlag("sound", value); } }
         public static bool ToolbarAlways { get { return Flag("toolbarAlways", true); } set { SetFlag("toolbarAlways", value); } }
         public static bool ToolbarLabels { get { return Flag("toolbarLabels", true); } set { SetFlag("toolbarLabels", value); } }
+        /// <summary>A "Thoát" button at the end of the toolbar that closes Phấn Trắng completely (tray icon too).</summary>
         public static bool WelcomeShown { get { return Flag("welcomeShown", false); } set { SetFlag("welcomeShown", value); } }
 
         /// <summary>The key held to click through to the slide: alt | ctrl | shift | off</summary>
@@ -199,37 +200,68 @@ namespace PhanTrang
         public static KeyCombo BoardKey { get { return KeyCombo.FromStored(Text("key.board", null), new KeyCombo(Win32.Mod.Ctrl | Win32.Mod.Alt, Keys.B)); } set { Put("key.board", value.Stored); } }
         public static KeyCombo ClearKey { get { return KeyCombo.FromStored(Text("key.clear", null), new KeyCombo(Win32.Mod.Ctrl | Win32.Mod.Alt, Keys.X)); } set { Put("key.clear", value.Stored); } }
 
-        // ---- lessons ----
+        // ---- exports ----
 
-        const int RecentCount = 6;
+        /// <summary>The folder of the last PDF / PowerPoint / picture export (empty = Documents). Not announced.</summary>
+        public static string ExportFolder { get { return Text("exportDir", ""); } set { Put("exportDir", value ?? "", false); } }
+
+        // ---- toolbar and typing panel: size and place ----
+
+        /// <summary>Toolbar size: s | m | l | xl.</summary>
+        public static string ToolbarSize { get { return OneOf("toolbarSize", "m", new[] { "s", "m", "l", "xl" }); } set { Put("toolbarSize", value); } }
+        public static double ToolbarSizeFactor
+        {
+            get { switch (ToolbarSize) { case "s": return 0.8; case "l": return 1.25; case "xl": return 1.5; default: return 1; } }
+        }
+
+        /// <summary>How visible the toolbar stays while the teacher draws: 0 = hidden, up to 0.8.</summary>
+        public static double ToolbarDim { get { return Number("toolbarDim", 0.3, 0, 0.8); } set { SetNumber("toolbarDim", value); } }
 
         /// <summary>
-        /// Whether a remembered lesson is still there. Files on network shares are not checked: asking a share that
-        /// has gone away can block for half a minute, and opening such a file reports the problem anyway.
+        /// Where the teacher dragged the toolbar, as a shift from its usual place (bottom centre) in fractions of the
+        /// work area, so it lands in the same spot on another screen. Written without announcing: nothing to rebuild.
         /// </summary>
-        static bool StillThere(string path)
+        public static double ToolbarShiftX { get { return Number("toolbarX", 0, -1, 1); } set { Put("toolbarX", value.ToString("0.####", CultureInfo.InvariantCulture), false); } }
+        public static double ToolbarShiftY { get { return Number("toolbarY", 0, -1, 0); } set { Put("toolbarY", value.ToString("0.####", CultureInfo.InvariantCulture), false); } }
+
+        /// <summary>The typing panel's place (fraction of the work area for its top left corner; negative = automatic) and size.</summary>
+        public static double TypePanelX { get { return Number("typeX", -1, -1, 1); } set { Put("typeX", value.ToString("0.####", CultureInfo.InvariantCulture), false); } }
+        public static double TypePanelY { get { return Number("typeY", -1, -1, 1); } set { Put("typeY", value.ToString("0.####", CultureInfo.InvariantCulture), false); } }
+        public static double TypePanelSize { get { return Number("typeSize", 1, 0.6, 1.5); } set { Put("typeSize", value.ToString("0.###", CultureInfo.InvariantCulture), false); } }
+
+        // ---- anonymous usage counts (see Usage) ----
+
+        /// <summary>Send anonymous usage counts. On by default; switching it off also forgets the random id.</summary>
+        public static bool UsageStats
         {
-            try
-            {
-                if (path.StartsWith(@"\\")) return true;
-                var root = Path.GetPathRoot(path);
-                if (!string.IsNullOrEmpty(root) && new DriveInfo(root).DriveType == DriveType.Network) return true;
-                return File.Exists(path);
-            }
-            catch (ArgumentException) { return false; }
+            get { return Flag("usageStats", true); }
+            set { SetFlag("usageStats", value); if (!value) Usage.Forget(); }
         }
 
-        /// <summary>Lessons opened or saved lately, newest first.</summary>
-        public static List<string> RecentLessons
+        /// <summary>A random id made on this computer the first time counts are sent; tells computers apart, nothing more.</summary>
+        public static string DeviceId { get { return Text("deviceId", ""); } set { Put("deviceId", value ?? "", false); } }
+
+        public static string EnsureDeviceId()
         {
-            get { return Text("recent", "").Split('|').Where(p => p.Length > 0 && StillThere(p)).Take(RecentCount).ToList(); }
+            string id = DeviceId;
+            if (!System.Text.RegularExpressions.Regex.IsMatch(id, "^[0-9a-f]{32}$")) { id = Guid.NewGuid().ToString("N"); DeviceId = id; }
+            return id;
         }
 
-        public static void AddRecent(string path)
+        // ---- classroom tools ----
+
+        public static int TimerSeconds { get { return (int)Number("timerSeconds", 300, 1, 5999); } set { Put("timerSeconds", value.ToString(CultureInfo.InvariantCulture), false); } }
+        public static int GroupCount { get { return (int)Number("groupCount", 4, 2, 12); } set { Put("groupCount", value.ToString(CultureInfo.InvariantCulture), false); } }
+        public static int TeamCount { get { return (int)Number("teamCount", 4, 2, 8); } set { Put("teamCount", value.ToString(CultureInfo.InvariantCulture), false); } }
+
+        /// <summary>Faint ruled lines across the screen while typing, and the next line snaps to them.</summary>
+        public static bool TypeLines { get { return Flag("typeLines", true); } set { SetFlag("typeLines", value); } }
+
+        public static void ResetPlaces()
         {
-            var list = new List<string> { path };
-            list.AddRange(Text("recent", "").Split('|').Where(p => p.Length > 0 && !p.Equals(path, StringComparison.OrdinalIgnoreCase)));
-            Put("recent", string.Join("|", list.Take(RecentCount).ToArray()));
+            foreach (var key in new[] { "toolbarX", "toolbarY", "typeX", "typeY", "typeSize" }) store.Remove(key);
+            Write();
+            if (Changed != null) Changed();
         }
 
         /// <summary>Back to the defaults. Start-with-Windows (kept by Windows) and the first-run flag stay as they are.</summary>

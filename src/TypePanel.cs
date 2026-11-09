@@ -23,6 +23,14 @@ namespace PhanTrang
         bool replacing;
         public event Action<string> TextTyped;
         public event Action Commit, RemoveLast, CloseRequested, LookChanged;
+        /// <summary>The teacher finished dragging the panel somewhere else.</summary>
+        public event Action Moved;
+        /// <summary>The teacher finished resizing it by the corner: the new width as a share of the usual one.</summary>
+        public event Action<double> Resized;
+        /// <summary>The size setting this panel was built with.</summary>
+        public readonly double SizeSetting;
+        Size builtSize;
+        const double Aspect = 190.0 / PanelW;
 
         [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
@@ -33,9 +41,10 @@ namespace PhanTrang
 
         int S(double v) { return (int)Math.Round(v * k); }
 
-        public TypePanel(double scale)
+        public TypePanel(double scale, double sizeSetting = 1)
         {
             k = (float)scale;
+            SizeSetting = sizeSetting;
             // a borderless floating strip that stays above the slide and the board, not in the taskbar
             SuspendLayout();
             AutoScaleMode = AutoScaleMode.None;
@@ -96,10 +105,49 @@ namespace PhanTrang
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 using (var pen = new Pen(Theme.Line, 1)) g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
                 ToolIcons.Draw(g, "type", new Rectangle(S(16), S(18), S(24), S(24)), Theme.Green, false);
+                // the corner grip for resizing
+                using (var pen = new Pen(Theme.LineStrong, Math.Max(1, k * 1.5f)))
+                    for (int i = 1; i <= 3; i++) g.DrawLine(pen, Width - S(4) - S(4 * i), Height - S(4), Width - S(4), Height - S(4) - S(4 * i));
                 using (var f = Ui.ItemTitle(k)) Ui.Text(g, "Gõ lên bảng", f, Theme.Green, new Rectangle(S(48), S(13), S(128), S(22)), TextFormatFlags.Left);
                 using (var f = Ui.Caption(k)) Ui.Text(g, "Enter: xuống dòng", f, Theme.Dim, new Rectangle(S(48), S(35), S(128), S(20)), TextFormatFlags.Left);
             };
             ResumeLayout(false);
+            builtSize = Size;
+            ResizeEnd += (s, e) =>
+            {
+                if (Size != builtSize) { if (Resized != null) Resized(Width / (double)builtSize.Width); }
+                else if (Moved != null) Moved();
+            };
+        }
+
+        const int WmNcHitTest = 0x84, WmSizing = 0x214, HtClient = 1, HtCaption = 2, HtBottomRight = 17;
+
+        /// <summary>
+        /// Any empty part of the panel (its title, the gaps between rows) moves it, like a title bar; the bottom right
+        /// corner resizes it. While resizing the height follows the width, so the panel keeps its shape.
+        /// </summary>
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == WmNcHitTest)
+            {
+                base.WndProc(ref m);
+                if (m.Result.ToInt64() != HtClient) return;
+                long lp = m.LParam.ToInt64();
+                var p = PointToClient(new Point((short)(lp & 0xFFFF), (short)((lp >> 16) & 0xFFFF)));
+                m.Result = (IntPtr)(p.X >= Width - S(22) && p.Y >= Height - S(22) ? HtBottomRight : HtCaption);
+                return;
+            }
+            if (m.Msg == WmSizing)
+            {
+                var r = (RECT)Marshal.PtrToStructure(m.LParam, typeof(RECT));
+                int w = Math.Max((int)(builtSize.Width * 0.5), r.Right - r.Left);
+                r.Right = r.Left + w;
+                r.Bottom = r.Top + (int)Math.Round(w * Aspect);
+                Marshal.StructureToPtr(r, m.LParam, false);
+                m.Result = (IntPtr)1;
+                return;
+            }
+            base.WndProc(ref m);
         }
 
         void AutoReplace()
@@ -124,11 +172,32 @@ namespace PhanTrang
         public string Typed { get { return box.Text; } }
         public void ClearText() { box.Text = ""; }
 
-        /// <summary>Show above the toolbar and take the keyboard from the presentation app.</summary>
-        public void Open(RECT work, int toolbarTop)
+        public void SetText(string text) { box.Text = text ?? ""; box.Select(box.TextLength, 0); }
+
+        /// <summary>
+        /// Shows the panel and takes the keyboard from the presentation app. It goes where the teacher last dragged
+        /// it; otherwise next to the toolbar, moving to the other half of the screen when it would cover the line
+        /// being written (caretTop..caretBottom, screen pixels).
+        /// </summary>
+        public void Open(RECT work, int toolbarTop, int toolbarBottom, int caretTop, int caretBottom)
         {
-            int x = work.Left + Math.Max(0, (work.Width - Width) / 2);
-            int y = Math.Max(work.Top + S(8), toolbarTop - Height - S(10));
+            int x, y;
+            double fx = Settings.TypePanelX, fy = Settings.TypePanelY;
+            if (fx >= 0 && fy >= 0)
+            {
+                x = work.Left + (int)Math.Round(fx * work.Width);
+                y = work.Top + (int)Math.Round(fy * work.Height);
+            }
+            else
+            {
+                int middle = work.Top + work.Height / 2;
+                x = work.Left + Math.Max(0, (work.Width - Width) / 2);
+                y = toolbarTop > middle ? toolbarTop - Height - S(10) : toolbarBottom + S(10);
+                if (caretBottom > y && caretTop < y + Height)
+                    y = y + Height / 2 > middle ? work.Top + S(8) : work.Bottom - Height - S(8);
+            }
+            x = Math.Max(work.Left, Math.Min(x, work.Right - Width));
+            y = Math.Max(work.Top, Math.Min(y, work.Bottom - Height));
             Location = new Point(x, y);
             if (!Visible) Show();
             TakeFocus();

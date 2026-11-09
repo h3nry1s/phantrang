@@ -8,16 +8,22 @@ namespace PhanTrang
     /// rubber-stamp "tách". No sound files are shipped.</summary>
     public class Sounds
     {
-        readonly SoundPlayer tap, stamp;
+        readonly SoundPlayer tap, stamp, bell, ting;
 
         public Sounds()
         {
             tap = Make(Knock);
             stamp = Make(Stamp);
+            bell = Make(Bell, 1.6);
+            ting = Make(Ting, 0.7);
         }
 
         public void Tap() { Play(tap); }
         public void StampSound() { Play(stamp); }
+        /// <summary>"Ding-dong" when a countdown reaches zero.</summary>
+        public void Bell() { Play(bell); }
+        /// <summary>A bright "ting" when a name is picked.</summary>
+        public void Ting() { Play(ting); }
 
         static void Play(SoundPlayer p)
         {
@@ -45,11 +51,24 @@ namespace PhanTrang
             return (thump * 0.8 + tick + noise) * 0.6;
         }
 
-        static SoundPlayer Make(Func<double, Random, double> wave)
+        /// <summary>Two soft bell strikes, high then low, like a school bell chime.</summary>
+        static double Bell(double t, Random rnd)
+        {
+            Func<double, double, double> strike = (f, s) => s < 0 ? 0 : (Math.Sin(2 * Math.PI * f * s) + 0.45 * Math.Sin(2 * Math.PI * f * 2.76 * s) * Math.Exp(-s / 0.15)) * Math.Exp(-s / 0.45);
+            return (strike(784, t) + strike(622, t - 0.55)) * 0.32;
+        }
+
+        /// <summary>A small glockenspiel note with a shimmer.</summary>
+        static double Ting(double t, Random rnd)
+        {
+            return (Math.Sin(2 * Math.PI * 1568 * t) + 0.3 * Math.Sin(2 * Math.PI * 3136 * t)) * Math.Exp(-t / 0.18) * 0.35;
+        }
+
+        static SoundPlayer Make(Func<double, Random, double> wave, double seconds = 0.16)
         {
             try
             {
-                int n = (int)(Rate * 0.16);
+                int n = (int)(Rate * seconds);
                 var rnd = new Random(7);
                 var ms = new MemoryStream();
                 var w = new BinaryWriter(ms);
