@@ -48,10 +48,6 @@ static class T
         }
     }
 
-    static string Part(System.IO.Compression.ZipArchive zip, string name)
-    {
-        using (var s = zip.GetEntry(name).Open()) using (var r = new StreamReader(s, Encoding.UTF8)) return r.ReadToEnd();
-    }
 
     // ---------------- helpers ----------------
 
@@ -143,11 +139,6 @@ static class T
             Check(!MathInput.Apply("x^2", 99, out r, out c), "con trỏ ngoài chuỗi");
             Check(!MathInput.Apply("x^2", 0, out r, out c), "con trỏ ở đầu");
         });
-
-        Console.WriteLine("\nMở PowerPoint: khung trang chiếu");
-        Run("slide 16:9 vừa khít màn 16:9", () => { var r = PptxImport.Fit(1600, 900, 1920, 1080); Check(Math.Abs(r.X) < 0.01 && Math.Abs(r.Y) < 0.01, "không có lề"); Eq(1920.0, Math.Round(r.Width, 2), "rộng"); Eq(1080.0, Math.Round(r.Height, 2), "cao"); });
-        Run("slide 4:3 trên màn 16:9: cao đủ, căn giữa ngang", () => { var r = PptxImport.Fit(1024, 768, 1920, 1080); Eq(1080f, r.Height, "cao"); Eq(1440f, r.Width, "rộng"); Eq(240f, r.X, "lề trái"); Eq(0f, r.Y, "lề trên"); });
-        Run("slide 16:9 trên máy chiếu 4:3: rộng đủ, căn giữa dọc", () => { var r = PptxImport.Fit(1600, 900, 1024, 768); Eq(1024f, r.Width, "rộng"); Eq(576f, r.Height, "cao"); Eq(96f, r.Y, "lề trên"); });
 
         Console.WriteLine("\nBài giảng: lưu và mở");
         Run("lưu rồi mở lại cùng cỡ màn hình", () =>
@@ -465,54 +456,6 @@ static class T
                 Check(text.Substring(int.Parse(entries[i].Groups[1].Value)).StartsWith((i + 1) + " 0 obj"), "vị trí đối tượng " + (i + 1));
             Check(!File.Exists(f + ".tmp"), "không để lại tệp tạm");
         });
-        Run("xuất PowerPoint mới: mỗi trang một trang chiếu ảnh, XML hợp lệ", () =>
-        {
-            string f = Path.Combine(Tmp, "bài giảng.pptx");
-            Eq(2, Lesson.ExportPptx(f, Sample(), 1280, 720, "green", false, "Bài 5"), "số trang chiếu");
-            using (var zip = System.IO.Compression.ZipFile.OpenRead(f))
-            {
-                var names = zip.Entries.Select(e => e.FullName).ToList();
-                foreach (var part in new[] { "[Content_Types].xml", "_rels/.rels", "ppt/presentation.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml",
-                    "ppt/slides/_rels/slide2.xml.rels", "ppt/media/image2.jpeg", "ppt/slideMasters/slideMaster1.xml", "ppt/slideLayouts/slideLayout1.xml", "ppt/theme/theme1.xml" })
-                    Check(names.Contains(part), "có " + part);
-                foreach (var e in zip.Entries.Where(e => e.FullName.EndsWith(".xml") || e.FullName.EndsWith(".rels")))
-                    using (var s = e.Open()) System.Xml.Linq.XDocument.Load(s);   // every part parses
-                var pres = Part(zip, "ppt/presentation.xml");
-                Eq(2, System.Text.RegularExpressions.Regex.Matches(pres, "<p:sldId ").Count, "2 trang chiếu trong danh sách");
-                Check(pres.Contains("cx=\"12192000\" cy=\"6858000\""), "khổ 16:9 như màn hình");
-            }
-            Check(!File.Exists(f + ".tmp"), "không để lại tệp tạm");
-        });
-        Run("thêm vào PowerPoint có sẵn: giữ trang cũ, thêm vào cuối, lặp lại được", () =>
-        {
-            string f = Path.Combine(Tmp, "có sẵn.pptx");
-            Lesson.ExportPptx(f, Sample(), 1280, 720, "green", false, "Bài cũ");
-            Eq(2, Lesson.ExportPptx(f, Sample(), 1024, 768, "white", true, null), "thêm 2 trang lần 1");
-            Eq(2, Lesson.ExportPptx(f, Sample(), 1024, 768, "white", true, null), "thêm 2 trang lần 2");
-            using (var zip = System.IO.Compression.ZipFile.OpenRead(f))
-            {
-                var pres = Part(zip, "ppt/presentation.xml");
-                var ids = System.Text.RegularExpressions.Regex.Matches(pres, "<p:sldId id=\"(\\d+)\" r:id=\"([^\"]+)\"").Cast<System.Text.RegularExpressions.Match>().ToList();
-                Eq(6, ids.Count, "6 trang chiếu");
-                Eq(6, ids.Select(m => m.Groups[1].Value).Distinct().Count(), "id trang chiếu không trùng");
-                var rels = Part(zip, "ppt/_rels/presentation.xml.rels");
-                foreach (var m in ids) Check(rels.Contains("Id=\"" + m.Groups[2].Value + "\""), "quan hệ " + m.Groups[2].Value + " có thật");
-                Check(zip.GetEntry("ppt/slides/slide6.xml") != null, "slide6.xml");
-                Eq(6, zip.Entries.Count(e => e.FullName.StartsWith("ppt/media/")), "6 ảnh, không ảnh nào bị ghi đè");
-                Eq(6, System.Text.RegularExpressions.Regex.Matches(Part(zip, "[Content_Types].xml"), "presentationml.slide\\+xml").Count, "kiểu nội dung cho 6 trang");
-                // a 4:3 page in a 16:9 deck is fitted inside the slide, centred
-                var s3 = Part(zip, "ppt/slides/slide3.xml");
-                Check(s3.Contains("<a:off x=\"1524000\" y=\"0\"/><a:ext cx=\"9144000\" cy=\"6858000\"/>"), "ảnh 4:3 nằm giữa trang 16:9");
-            }
-        });
-        Run("thêm vào tệp không phải PowerPoint → báo lỗi rõ ràng, tệp gốc còn nguyên", () =>
-        {
-            string f = Path.Combine(Tmp, "giả.pptx");
-            File.WriteAllText(f, "không phải pptx");
-            Throws<InvalidDataException>(() => Lesson.ExportPptx(f, Sample(), 1280, 720, "green", true, null), "tệp chữ");
-            Eq("không phải pptx", File.ReadAllText(f), "tệp gốc");
-            Check(!File.Exists(f + ".tmp"), "không để lại tệp tạm");
-        });
         Run("dòng kẻ khi gõ: bấm đâu cũng rơi đúng đầu một dòng", () =>
         {
             var sc = new Stage();
@@ -641,6 +584,32 @@ static class T
             Eq(4, p.Left, "vòng 2 còn 4");
             Check(new NamePicker(new string[0]).Next() == null, "danh sách rỗng");
         });
+        Run("gọi tên: khe dừng đúng ở người được gọi; dải tên chỉ gồm các bạn còn chờ, không lặp liền nhau", () =>
+        {
+            var names = new[] { "An", "Bình", "Chi", "Dũng", "Em", "Giang" };
+            for (int seed = 0; seed < 40; seed++)
+            {
+                var p = new NamePicker(names, new Random(seed));
+                var called = new List<string>();
+                for (int turn = 0; turn < names.Length + 2; turn++)
+                {
+                    List<string> reel;
+                    string who = p.Spin(18, out reel);
+                    Eq(who, reel[reel.Count - 1], "ô cuối là người được gọi");
+                    Eq(1, reel.Count(n => n == who), "người được gọi chỉ hiện một lần, ở cuối");
+                    // (a new round, or the end of a round with under two waiting, may roll past anyone else)
+                    Check(p.Left < 2 || p.Left == names.Length - 1 || reel.Take(reel.Count - 1).All(n => !called.Contains(n)), "không quay qua bạn đã được gọi trong vòng");
+                    for (int i = 1; i < reel.Count; i++) Check(reel[i] != reel[i - 1], "không lặp liền nhau");
+                    Eq(who, p.Called[p.Called.Count - 1], "ghi nhận đúng người");
+                    called = p.Called.ToList();
+                }
+            }
+            List<string> one;
+            Eq("An", new NamePicker(new[] { "An" }).Spin(18, out one), "lớp một bạn");
+            Eq(1, one.Count, "chỉ một ô");
+            List<string> none;
+            Check(new NamePicker(new string[0]).Spin(18, out none) == null && none.Count == 0, "danh sách rỗng");
+        });
         Run("chia nhóm: đủ người, các nhóm chênh nhau tối đa 1", () =>
         {
             var names = Enumerable.Range(1, 23).Select(i => "HS" + i).ToList();
@@ -713,15 +682,15 @@ static class T
         Console.WriteLine("\nSố liệu sử dụng ẩn danh");
         Run("gói tin chỉ có mã máy, phiên bản, kênh, Windows và số đếm", () =>
         {
-            var n = new Dictionary<string, int> { { "tool.draw", 5 }, { "start", 1 }, { "export.pptx", 2 } };
+            var n = new Dictionary<string, int> { { "tool.draw", 5 }, { "start", 1 }, { "export.pdf", 2 } };
             string json = Usage.Payload("0123456789abcdef0123456789abcdef", "1.3.0", "tai-ve", "10.0.26200.0", n);
-            Eq("{\"id\":\"0123456789abcdef0123456789abcdef\",\"v\":\"1.3.0\",\"ch\":\"tai-ve\",\"os\":\"10.0.26200.0\",\"n\":{\"export.pptx\":2,\"start\":1,\"tool.draw\":5}}", json, "json");
+            Eq("{\"id\":\"0123456789abcdef0123456789abcdef\",\"v\":\"1.3.0\",\"ch\":\"tai-ve\",\"os\":\"10.0.26200.0\",\"n\":{\"export.pdf\":2,\"start\":1,\"tool.draw\":5}}", json, "json");
             var parsed = new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(json) as Dictionary<string, object>;
             Eq(5, parsed.Count, "đúng 5 trường");
         });
         Run("gói tin không mang được chữ tự do (tên, đường dẫn, dấu ngoặc kép)", () =>
         {
-            var n = new Dictionary<string, int> { { "Nguyễn Văn An", 1 }, { "C:\\Users\\cô giáo\\bai.pptx", 1 }, { "x\",\"y", 1 }, { "tool.type", 0 }, { "class.picker", 3 } };
+            var n = new Dictionary<string, int> { { "Nguyễn Văn An", 1 }, { "C:\\Users\\cô giáo\\bai.pdf", 1 }, { "x\",\"y", 1 }, { "tool.type", 0 }, { "class.picker", 3 } };
             string json = Usage.Payload("ab\"cd", "1.3\"}", "tai-ve", "10.0", n);
             Eq("{\"id\":\"abcd\",\"v\":\"1.3\",\"ch\":\"tai-ve\",\"os\":\"10.0\",\"n\":{\"class.picker\":3}}", json, "lọc sạch");
             Check(new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(json) != null, "vẫn là JSON hợp lệ");

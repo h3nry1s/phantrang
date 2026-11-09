@@ -180,28 +180,13 @@ namespace PhanTrang
                     break;
                 case "lesson":
                     h("Bài giảng & xuất tệp");
-                    if (TeacherApp.PowerPointOn)
+                    lead("Soạn các trang bảng, rồi xuất ra PDF để in hoặc thành ảnh để gửi.");
+                    steps(new[]
                     {
-                        lead("Soạn các trang bảng, rồi xuất ra PowerPoint để trình chiếu hoặc PDF để in.");
-                        steps(new[]
-                        {
-                            "Bấm ⌄ cạnh nút Bảng → Bài giảng → Bài mới.",
-                            "Gõ chữ, vẽ, đóng dấu như lúc dạy. Bấm + để thêm trang.",
-                            "Bài giảng → PowerPoint: mỗi trang bảng thành một trang chiếu trong bài mới.",
-                            "Hoặc Bài giảng → Thêm vào PPT: chọn bài PowerPoint có sẵn, các trang được thêm vào cuối.",
-                        });
-                        row("open", "Mở PPT", "Mở bài PowerPoint có sẵn: mỗi trang chiếu thành một trang bảng để viết, chấm, đóng dấu lên. Cần PowerPoint hoặc WPS trên máy; tệp gốc không bị sửa.");
-                    }
-                    else
-                    {
-                        lead("Soạn các trang bảng, rồi xuất ra PDF để in hoặc thành ảnh để gửi.");
-                        steps(new[]
-                        {
-                            "Bấm ⌄ cạnh nút Bảng → Bài giảng → Bài mới.",
-                            "Gõ chữ, vẽ, đóng dấu như lúc dạy. Bấm + để thêm trang.",
-                            "Bài giảng → Xuất PDF hoặc Xuất ảnh.",
-                        });
-                    }
+                        "Bấm ⌄ cạnh nút Bảng → Bài giảng → Bài mới.",
+                        "Gõ chữ, vẽ, đóng dấu như lúc dạy. Bấm + để thêm trang.",
+                        "Bài giảng → Xuất PDF hoặc Xuất ảnh.",
+                    });
                     row("pdf", "Xuất PDF", "Cả bài vào một tệp PDF để in hoặc gửi.");
                     row("image", "Xuất ảnh", "Mỗi trang thành một ảnh PNG, tiện gửi cho học sinh ôn bài.");
                     tip("Các trang được xuất dưới dạng ảnh. Khi tắt Phấn Trắng, các trang được tự lưu: mở lại ở khay hệ thống → Bài giảng → Bài đang soạn dở.");

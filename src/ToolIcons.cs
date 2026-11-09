@@ -164,25 +164,6 @@ namespace PhanTrang
                         using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
                             g.DrawString("PDF", f, white, new RectangleF(r.Left + 2 * u, r.Top + 11.5f * u, 15 * u, 6.8f * u), sf);
                         break;
-                    case "pptx":
-                    case "addpptx":
-                        {
-                            // a slide on a stand with an orange "P" (PowerPoint's colour); the add version has a plus
-                            bool add = kind == "addpptx";
-                            g.DrawRectangle(pen, r.Left + 3 * u, r.Top + 4 * u, (add ? 14 : 18) * u, 12 * u);
-                            g.DrawLine(pen, P(add ? 10 : 12, 16), P(add ? 10 : 12, 20));
-                            g.DrawLine(pen, P(add ? 7 : 8, 20.5f), P(add ? 13 : 16, 20.5f));
-                            using (var band = new SolidBrush(onDark ? col : Color.FromArgb(208, 74, 36))) g.FillRectangle(band, r.Left + 5.5f * u, r.Top + 6.5f * u, 6.5f * u, 7 * u);
-                            using (var f = Fonts.Get("uiBold", 5.6f * u)) using (var white = new SolidBrush(onDark ? Theme.Green : Color.White))
-                            using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
-                                g.DrawString("P", f, white, new RectangleF(r.Left + 5.5f * u, r.Top + 6.6f * u, 6.5f * u, 7 * u), sf);
-                            if (add)
-                            {
-                                g.DrawLine(pen, P(20, 8), P(20, 14));
-                                g.DrawLine(pen, P(17, 11), P(23, 11));
-                            }
-                            break;
-                        }
                     case "save":
                         g.DrawPolygon(pen, new[] { P(4, 4), P(16.5f, 4), P(20, 7.5f), P(20, 20), P(4, 20) });
                         g.DrawLines(pen, new[] { P(8, 4), P(8, 9), P(15, 9), P(15, 4) });

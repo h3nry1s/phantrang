@@ -260,7 +260,7 @@ namespace PhanTrang
         public NamePicker(IEnumerable<string> names, Random rng = null)
         {
             this.names = (names ?? Enumerable.Empty<string>()).ToList();
-            this.rng = rng ?? new Random();
+            this.rng = rng ?? Fair.NewRandom();
             Reset();
         }
 
@@ -282,12 +282,39 @@ namespace PhanTrang
             return name;
         }
 
-        /// <summary>Some names to flash past while the picker "spins".</summary>
-        public List<string> Reel(int count)
+        /// <summary>
+        /// One turn of the picker: draws the student called now and the reel of names that rolls past before it.
+        /// The reel ends with the called student, exactly once, so the name the slot stops on is the one called.
+        /// The names rolling past are students still waiting this round (never the called one), with no name
+        /// twice in a row. Null (and an empty reel) if the list is empty.
+        /// </summary>
+        public string Spin(int length, out List<string> reel)
         {
-            var reel = new List<string>();
-            for (int i = 0; i < count && names.Count > 0; i++) reel.Add(names[rng.Next(names.Count)]);
-            return reel;
+            reel = new List<string>();
+            string called = Next();
+            if (called == null) return null;
+            var pool = left.Select(i => names[i]).Where(n => n != called).Distinct().ToList();
+            if (pool.Count < 2) pool = names.Where(n => n != called).Distinct().ToList();   // end of a round: anyone else may roll past
+            for (int i = 0; i < length && pool.Count > 0; i++)
+            {
+                if (pool.Count == 1 && reel.Count > 0) break;   // a class of two: nothing else to show
+                int j = rng.Next(pool.Count);
+                if (reel.Count > 0 && pool[j] == reel[reel.Count - 1]) j = (j + 1 + rng.Next(pool.Count - 1)) % pool.Count;
+                reel.Add(pool[j]);
+            }
+            reel.Add(called);
+            return called;
+        }
+    }
+
+    /// <summary>Random draws that do not depend on when a card was opened (Random() alone is seeded from the clock).</summary>
+    public static class Fair
+    {
+        public static Random NewRandom()
+        {
+            var b = new byte[4];
+            using (var r = System.Security.Cryptography.RandomNumberGenerator.Create()) r.GetBytes(b);
+            return new Random(BitConverter.ToInt32(b, 0));
         }
     }
 

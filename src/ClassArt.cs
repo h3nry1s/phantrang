@@ -699,7 +699,7 @@ namespace PhanTrang
             {
                 var items = new List<string>();
                 if (reel != null) foreach (var s in reel) if (!string.IsNullOrEmpty(s)) items.Add(s);
-                items.Add(name);
+                if (items.Count == 0 || items[items.Count - 1] != name) items.Add(name);   // the slot always stops on the called name
                 int n = items.Count;
                 double e = 1 - Math.Pow(1 - spin, 3);
                 double pos = e * (n - 1);

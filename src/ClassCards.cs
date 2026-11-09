@@ -366,9 +366,7 @@ namespace PhanTrang
             {
                 case "spin":
                     if (picker.Count == 0) { if (editList()) Reload(); return; }
-                    name = picker.Next();
-                    reel = picker.Reel(18);
-                    reel.Add(name);
+                    name = picker.Spin(18, out reel);   // the reel ends on the called name
                     spinStart = Now;
                     Animate();
                     break;
@@ -385,7 +383,7 @@ namespace PhanTrang
     {
         readonly Func<bool> editList;
         readonly Action<IList<string>> toContest;
-        readonly Random rng = new Random();
+        readonly Random rng = Fair.NewRandom();
         List<List<string>> groups = new List<List<string>>();
         int count = Math.Max(2, Math.Min(12, Settings.GroupCount));
         double shuffledAt = -10;

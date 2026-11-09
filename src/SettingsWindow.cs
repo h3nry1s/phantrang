@@ -340,22 +340,17 @@ namespace PhanTrang
 
         void LessonSection(PageBuilder p)
         {
-            bool ppt = TeacherApp.PowerPointOn;
-            p.Title("Bài giảng", ppt ? "Soạn các trang bảng rồi xuất thành PowerPoint để trình chiếu, hoặc PDF để in và gửi." : "Soạn các trang bảng rồi xuất thành PDF để in và gửi, hoặc thành ảnh.");
+            p.Title("Bài giảng", "Soạn các trang bảng rồi xuất thành PDF để in và gửi, hoặc thành ảnh.");
             var actions = new FlowLayoutPanel { AutoSize = true, WrapContents = true, MaximumSize = new Size(p.Width, 0), BackColor = Theme.Cream, Margin = new Padding(0, Px(6), 0, 0) };
             var list = new[]
             {
                 Tuple.Create("Soạn bài mới", true, (Action)app.NewLesson),
                 Tuple.Create("Thêm ảnh vào trang…", false, (Action)app.AddImage),
                 Tuple.Create("Xuất PDF…", false, (Action)app.ExportPdf),
-                Tuple.Create("Mở bài PowerPoint…", false, (Action)(() => app.OpenPptx())),
-                Tuple.Create("Xuất PowerPoint…", false, (Action)(() => app.ExportPptx(false))),
-                Tuple.Create("Thêm vào PowerPoint có sẵn…", false, (Action)(() => app.ExportPptx(true))),
                 Tuple.Create("Xuất ảnh các trang…", false, (Action)app.ExportImages),
             };
             foreach (var a in list)
             {
-                if (!ppt && a.Item1.Contains("PowerPoint")) continue;
                 var b = Button(a.Item1, a.Item2);
                 b.Margin = new Padding(0, 0, Px(8), Px(8));
                 var act = a.Item3;
@@ -367,16 +362,7 @@ namespace PhanTrang
             p.Note("1. Bấm “Soạn bài mới”: bảng mở ra, gõ chữ, vẽ hình, đóng dấu như lúc dạy.");
             p.Note("2. Bấm + trên thanh công cụ để thêm trang. Mỗi trang có thể dùng loại bảng riêng.");
             p.Note("3. Cần hình minh hoạ: “Thêm ảnh vào trang”, rồi bấm vào chỗ muốn đặt (Esc để thôi).");
-            if (ppt)
-            {
-                p.Note("4. Trình chiếu: “Xuất PowerPoint” tạo bài mới, mỗi trang bảng là một trang chiếu. “Thêm vào PowerPoint có sẵn” đặt các trang vào cuối bài thầy cô đang có.");
-                p.Note("5. In hoặc gửi: “Xuất PDF” gộp tất cả các trang vào một tệp PDF. Trên thanh công cụ: ⌄ cạnh nút Bảng → Bài giảng.");
-                p.Note("Có sẵn bài PowerPoint? “Mở bài PowerPoint” biến mỗi trang chiếu thành một trang bảng để viết, chấm lên. Cần PowerPoint hoặc WPS trên máy; tệp gốc không bị sửa.");
-            }
-            else
-            {
-                p.Note("4. In hoặc gửi: “Xuất PDF” gộp tất cả các trang vào một tệp PDF; “Xuất ảnh” lưu mỗi trang thành một ảnh. Trên thanh công cụ: ⌄ cạnh nút Bảng → Bài giảng.");
-            }
+            p.Note("4. In hoặc gửi: “Xuất PDF” gộp tất cả các trang vào một tệp PDF; “Xuất ảnh” lưu mỗi trang thành một ảnh. Trên thanh công cụ: ⌄ cạnh nút Bảng → Bài giảng.");
             p.Note("Các trang được xuất dưới dạng ảnh. Khi tắt Phấn Trắng hoặc soạn bài mới, các trang đang có được tự lưu: mở lại ở khay hệ thống › Bài giảng › Bản tự lưu.");
         }
 

@@ -195,45 +195,6 @@ namespace PhanTrang
             Refresh();
         }
 
-        /// <summary>
-        /// Opens a PowerPoint presentation as a new lesson: each slide becomes a white board page with the slide as
-        /// its picture, ready to write over. Needs PowerPoint or WPS on the machine (see PptxImport).
-        /// </summary>
-        public void OpenPptx()
-        {
-            string path = OverBoard(o =>
-            {
-                using (var d = new OpenFileDialog { Filter = PptxImport.Filter, Title = "Mở bài PowerPoint để viết lên", InitialDirectory = ExportFolder })
-                    return d.ShowDialog(o) == DialogResult.OK ? d.FileName : null;
-            });
-            if (path == null) return;
-            RememberFolder(path);
-            var screen = LessonScreen;
-            List<Sheet> pages;
-            try
-            {
-                Cursor.Current = Cursors.WaitCursor;
-                pages = PptxImport.Load(path, screen.Width, screen.Height);
-            }
-            catch (Exception e)
-            {
-                Log.Write("mở PowerPoint: " + e);
-                Say("Không mở được bài PowerPoint.\n" + WhyNotOpened(e), true);
-                return;
-            }
-            finally { Cursor.Current = Cursors.Default; }
-            MinimizeSettings();
-            if (!on) TurnOn();
-            if (!on) return;
-            if (Stage.Book.HasLesson) { AutoSave(); Lesson.KeepEarlierAutoSave(); }   // the pages being replaced stay in a spare copy
-            Usage.Count("lesson.pptx");
-            Stage.LoadPages(pages, "white");
-            if (Settings.Tool == "type" || Settings.Tool == "image") SetTool("draw");
-            RefreshTyping();
-            Refresh();
-            Say("Đã mở " + pages.Count + " trang chiếu thành " + pages.Count + " trang bảng. Lật trang ở thanh công cụ.");
-        }
-
         string AskSave(string filter, string title, string name, string ext)
         {
             return OverBoard(o =>
@@ -282,48 +243,6 @@ namespace PhanTrang
             {
                 Log.Write("xuất PDF: " + e);
                 Say(e is IOException ? "Tệp PDF này đang mở ở chương trình khác. Thầy cô đóng tệp đó rồi xuất lại, hoặc đặt tên khác." : "Không xuất được PDF vào chỗ này. Thầy cô thử chọn thư mục khác.", true);
-            }
-            finally { Cursor.Current = Cursors.Default; }
-        }
-
-        /// <summary>
-        /// PowerPoint features (open a presentation to write over, export / add to a presentation) are held back for
-        /// now: their buttons, menu entries and help text are hidden while this is false. The code stays in place.
-        /// </summary>
-        public static bool PowerPointOn { get { return false; } }
-
-        /// <summary>
-        /// The lesson as PowerPoint slides (one picture per page), to present: a new .pptx, or (append) added after
-        /// the slides of a presentation the teacher already has.
-        /// </summary>
-        public void ExportPptx(bool append)
-        {
-            if (!Stage.Book.HasLesson) { Say("Bảng chưa có gì để xuất."); return; }
-            const string filter = "Bài PowerPoint (*.pptx)|*.pptx";
-            string path = append
-                ? OverBoard(o =>
-                {
-                    using (var d = new OpenFileDialog { Filter = filter, Title = "Chọn bài PowerPoint để thêm các trang bảng vào cuối", InitialDirectory = ExportFolder })
-                        return d.ShowDialog(o) == DialogResult.OK ? d.FileName : null;
-                })
-                : AskSave(filter, "Xuất bài giảng thành PowerPoint", "Bài giảng " + Today, "pptx");
-            if (path == null) return;
-            RememberFolder(path);
-            var screen = LessonScreen;
-            try
-            {
-                Cursor.Current = Cursors.WaitCursor;
-                Usage.Count(append ? "export.addpptx" : "export.pptx");
-                int n = Lesson.ExportPptx(path, Stage.BoardPages, screen.Width, screen.Height, Stage.Board, append, Path.GetFileNameWithoutExtension(path));
-                Say((append ? "Đã thêm " + n + " trang chiếu vào cuối bài\n" : "Đã xuất " + n + " trang chiếu vào tệp\n") + path);
-            }
-            catch (Exception e)
-            {
-                Log.Write("xuất PowerPoint: " + e);
-                string why = e is InvalidDataException ? e.Message
-                    : e is IOException ? "Bài PowerPoint này đang mở. Thầy cô đóng bài trong PowerPoint rồi thử lại."
-                    : "Không ghi được vào chỗ này. Thầy cô thử chọn thư mục khác.";
-                Say("Không xuất được PowerPoint.\n" + why, true);
             }
             finally { Cursor.Current = Cursors.Default; }
         }

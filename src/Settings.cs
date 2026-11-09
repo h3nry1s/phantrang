@@ -202,7 +202,7 @@ namespace PhanTrang
 
         // ---- exports ----
 
-        /// <summary>The folder of the last PDF / PowerPoint / picture export (empty = Documents). Not announced.</summary>
+        /// <summary>The folder of the last PDF / picture export (empty = Documents). Not announced.</summary>
         public static string ExportFolder { get { return Text("exportDir", ""); } set { Put("exportDir", value ?? "", false); } }
 
         // ---- toolbar and typing panel: size and place ----

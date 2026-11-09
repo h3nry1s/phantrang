@@ -164,18 +164,13 @@ namespace PhanTrang
                 case "class": return ClassChoices();
                 case "lesson":
                     bool any = Stage.Book.HasLesson;
-                    var lessonRow = new List<ToolButton>
+                    return new List<ToolButton>
                     {
                         new ToolButton { Id = "lesson:new", Icon = "newlesson", Label = "Bài mới", Width = 76 },
-                        new ToolButton { Id = "lesson:openpptx", Icon = "open", Label = "Mở PPT", Width = 76, Tip = "Mở bài PowerPoint: mỗi trang chiếu thành một trang bảng để viết lên" },
                         new ToolButton { Id = "image:add", Icon = "addimage", Label = "Thêm ảnh", Width = 80 },
                         new ToolButton { Id = "lesson:pdf", Icon = "pdf", Label = "Xuất PDF", Width = 76, Off = !any, Tip = "Cả bài giảng thành một tệp PDF để in hoặc gửi" },
-                        new ToolButton { Id = "lesson:pptx", Icon = "pptx", Label = "PowerPoint", Width = 84, Off = !any, Tip = "Các trang thành bài PowerPoint mới để trình chiếu" },
-                        new ToolButton { Id = "lesson:addpptx", Icon = "addpptx", Label = "Thêm vào PPT", Width = 92, Off = !any, Tip = "Thêm các trang vào cuối một bài PowerPoint có sẵn" },
                         new ToolButton { Id = "lesson:images", Icon = "image", Label = "Xuất ảnh", Width = 76, Off = !any },
                     };
-                    if (!PowerPointOn) lessonRow.RemoveAll(b => b.Id.Contains("pptx"));
-                    return lessonRow;
             }
             return new List<ToolButton>();
         }
@@ -266,9 +261,6 @@ namespace PhanTrang
                 case "class": toolbar.CloseChoices(); ClassTool(arg); return;
                 case "lesson":
                     if (arg == "new") NewLesson();
-                    else if (arg == "openpptx") { toolbar.CloseChoices(); OpenPptx(); }
-                    else if (arg == "pptx") ExportPptx(false);
-                    else if (arg == "addpptx") ExportPptx(true);
                     else if (arg == "pdf") ExportPdf();
                     else if (arg == "images") ExportImages();
                     return;

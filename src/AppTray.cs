@@ -182,14 +182,8 @@ namespace PhanTrang
             var items = lesson.DropDownItems;
             bool any = Stage.Book.HasLesson;
             items.Add(Entry("Soạn bài mới", NewLesson, "newlesson"));
-            if (PowerPointOn) items.Add(Entry("Mở bài PowerPoint để viết lên…", OpenPptx, "open"));
             items.Add(Entry("Thêm ảnh vào trang…", AddImage, "addimage"));
             var pdf = Entry("Xuất thành PDF…", ExportPdf, "pdf"); pdf.Enabled = any; items.Add(pdf);
-            if (PowerPointOn)
-            {
-                var pptx = Entry("Xuất thành PowerPoint…", () => ExportPptx(false), "pptx"); pptx.Enabled = any; items.Add(pptx);
-                var addPptx = Entry("Thêm vào bài PowerPoint có sẵn…", () => ExportPptx(true), "addpptx"); addPptx.Enabled = any; items.Add(addPptx);
-            }
             var export = Entry("Xuất các trang thành ảnh…", ExportImages, "image"); export.Enabled = any; items.Add(export);
 
             // spare copies Phấn Trắng saved by itself (when switched off, or before a new lesson)

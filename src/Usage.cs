@@ -37,7 +37,7 @@ namespace PhanTrang
             id = enabled ? Settings.EnsureDeviceId() : null;
         }
 
-        /// <summary>Counts one use of a feature (a fixed name such as "tool.draw" or "export.pptx"; never user text).</summary>
+        /// <summary>Counts one use of a feature (a fixed name such as "tool.draw" or "export.pdf"; never user text).</summary>
         public static void Count(string key)
         {
             if (!enabled || key == null || !KeyRule.IsMatch(key)) return;
