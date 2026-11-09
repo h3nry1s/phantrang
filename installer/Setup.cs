@@ -22,8 +22,8 @@ using Microsoft.Win32;
 [assembly: AssemblyCompany("Viên Thế Hưng")]
 [assembly: AssemblyProduct("Phấn Trắng")]
 [assembly: AssemblyCopyright("© 2026 Viên Thế Hưng")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
+[assembly: AssemblyVersion("1.3.1.0")]
+[assembly: AssemblyFileVersion("1.3.1.0")]
 
 static class Setup
 {
