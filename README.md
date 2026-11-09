@@ -6,28 +6,19 @@ Giới thiệu và thử từng tính năng: **https://phantrang.org**
 
 ## Tải về và cài đặt
 
-Tải bản mới nhất ở trang **[Releases](https://github.com/h3nry1s/phantrang/releases/latest)**. Có hai cách:
+**Cài từ Microsoft Store (cách chính):** **[Phấn Trắng trên Microsoft Store](https://apps.microsoft.com/detail/9N4CWVRK45FF?hl=vi-VN&gl=VN)**. Mở trang, bấm cài đặt. Bản Store được Microsoft kiểm duyệt nên Windows không cảnh báo, Smart App Control không chặn, và ứng dụng tự cập nhật khi có bản mới. Gỡ cài đặt: **Cài đặt Windows › Ứng dụng › Phấn Trắng › Gỡ cài đặt**.
 
-### Cách 1: Bộ cài (khuyên dùng)
+### Cách phụ: tải từ GitHub (máy không dùng được Microsoft Store, hoặc cần bản chạy từ USB)
 
-1. Tải **`PhanTrang-Setup-<phiên bản>.exe`**.
-2. Mở tệp vừa tải, bấm **Cài đặt**. Không cần quyền quản trị, không cần mạng, không phải khởi động lại máy.
-3. Bấm **Mở Phấn Trắng**. Lần sau mở từ menu Start (hoặc biểu tượng trên màn hình nền nếu đã chọn).
+Trang **[Releases](https://github.com/h3nry1s/phantrang/releases/latest)** vẫn có:
 
-Gỡ cài đặt: **Cài đặt Windows › Ứng dụng › Phấn Trắng › Gỡ cài đặt**. Bản tự lưu và cài đặt của thầy cô trong `%APPDATA%\PhanTrang` được giữ lại.
+- **`PhanTrang-Setup-<phiên bản>.exe`**: mở tệp, bấm **Cài đặt** (không cần quyền quản trị, không cần mạng). Bản tự lưu và cài đặt nằm trong `%APPDATA%\PhanTrang`, gỡ cài đặt vẫn giữ lại.
+- **`PhanTrang-<phiên bản>-portable.zip`**: chạy không cần cài. Bấm chuột phải › **Extract All…** (Giải nén tất cả), chép thư mục ra máy hoặc USB, mở **`PhanTrang.exe`** (thư mục `assets` phải nằm cạnh tệp exe).
 
-### Cách 2: Bản chạy không cần cài (USB)
-
-1. Tải **`PhanTrang-<phiên bản>-portable.zip`**.
-2. Bấm chuột phải › **Extract All…** (Giải nén tất cả), chép thư mục ra máy hoặc USB.
-3. Mở **`PhanTrang.exe`**. Thư mục `assets` phải nằm cạnh tệp exe.
-
-### Nếu Windows hiện cảnh báo
-
-Bản tải từ GitHub hiện **chưa có chữ ký số** (đang chờ cấp chữ ký cho dự án mã nguồn mở), nên:
+Bản tải từ GitHub **chưa có chữ ký số**, nên:
 
 - **“Windows đã bảo vệ máy tính của bạn”** (SmartScreen): bấm **Thông tin thêm** › **Vẫn chạy**.
-- **Smart App Control chặn ứng dụng** (máy Windows 11 cài mới): Windows không cho bỏ qua. Thầy cô chờ bản trên **Microsoft Store** (đang được Microsoft duyệt) hoặc bản có chữ ký số.
+- **Smart App Control chặn ứng dụng** (máy Windows 11 cài mới): Windows không cho bỏ qua, hãy cài bản trên **Microsoft Store**.
 
 Kiểm tra tệp tải về đúng là bản phát hành: mã SHA-256 ghi trong phần mô tả của mỗi bản phát hành và trong `phien-ban.json`. Trong PowerShell: `Get-FileHash <tệp>`.
 
