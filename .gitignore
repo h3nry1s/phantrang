@@ -9,11 +9,8 @@ build/
 # local test runs
 sandbox-out/
 
-# downloaded tools (sign.ps1 fetches signtool from Microsoft's NuGet package when needed)
-tools/sdk-buildtools/
-
-# release files are published as GitHub Release assets, not kept in the repository
-site/tai-ve/
+# maintainer-only helpers
+tools/
 
 # editors and OS
 .vs/

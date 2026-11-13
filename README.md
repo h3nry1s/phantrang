@@ -6,21 +6,7 @@ Giới thiệu và thử từng tính năng: **https://phantrang.org**
 
 ## Tải về và cài đặt
 
-**Cài từ Microsoft Store (cách chính):** **[Phấn Trắng trên Microsoft Store](https://apps.microsoft.com/detail/9N4CWVRK45FF?hl=vi-VN&gl=VN)**. Mở trang, bấm cài đặt. Bản Store được Microsoft kiểm duyệt nên Windows không cảnh báo, Smart App Control không chặn, và ứng dụng tự cập nhật khi có bản mới. Gỡ cài đặt: **Cài đặt Windows › Ứng dụng › Phấn Trắng › Gỡ cài đặt**.
-
-### Cách phụ: tải từ GitHub (máy không dùng được Microsoft Store, hoặc cần bản chạy từ USB)
-
-Trang **[Releases](https://github.com/h3nry1s/phantrang/releases/latest)** vẫn có:
-
-- **`PhanTrang-Setup-<phiên bản>.exe`**: mở tệp, bấm **Cài đặt** (không cần quyền quản trị, không cần mạng). Bản tự lưu và cài đặt nằm trong `%APPDATA%\PhanTrang`, gỡ cài đặt vẫn giữ lại.
-- **`PhanTrang-<phiên bản>-portable.zip`**: chạy không cần cài. Bấm chuột phải › **Extract All…** (Giải nén tất cả), chép thư mục ra máy hoặc USB, mở **`PhanTrang.exe`** (thư mục `assets` phải nằm cạnh tệp exe).
-
-Bản tải từ GitHub **chưa có chữ ký số**, nên:
-
-- **“Windows đã bảo vệ máy tính của bạn”** (SmartScreen): bấm **Thông tin thêm** › **Vẫn chạy**.
-- **Smart App Control chặn ứng dụng** (máy Windows 11 cài mới): Windows không cho bỏ qua, hãy cài bản trên **Microsoft Store**.
-
-Kiểm tra tệp tải về đúng là bản phát hành: mã SHA-256 ghi trong phần mô tả của mỗi bản phát hành và trong `phien-ban.json`. Trong PowerShell: `Get-FileHash <tệp>`.
+**[Phấn Trắng trên Microsoft Store](https://apps.microsoft.com/detail/9N4CWVRK45FF?hl=vi-VN&gl=VN)**. Mở trang, bấm cài đặt. Bản Store được Microsoft kiểm duyệt nên Windows không cảnh báo, Smart App Control không chặn, và ứng dụng tự cập nhật khi có bản mới. Gỡ cài đặt: **Cài đặt Windows › Ứng dụng › Phấn Trắng › Gỡ cài đặt**.
 
 ## Dùng nhanh
 
@@ -46,26 +32,22 @@ Không cần cài thêm gì: Windows 10 và 11 đã có sẵn trình biên dịc
 3. Trong thư mục vừa giải nén, nhấn đúp **`build.cmd`**. Nếu Windows hỏi, chọn **Thông tin thêm** › **Vẫn chạy**.
 4. Khoảng nửa phút sau, thư mục `dist` mở ra: nhấn đúp **`PhanTrang.exe`** để chạy (giữ thư mục `assets` nằm cạnh).
 
-Bản tự build không có chữ ký số, nên máy bật **Smart App Control** có thể không cho chạy; khi đó dùng bản trên Microsoft Store hoặc bản phát hành có chữ ký.
+Bản tự build không có chữ ký số, nên máy bật **Smart App Control** có thể không cho chạy; khi đó dùng bản trên Microsoft Store.
 
 ## Dành cho người phát triển
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1               # dist\PhanTrang.exe
 powershell -ExecutionPolicy Bypass -File tests\run-tests.ps1     # build + kiểm thử tự động
-powershell -ExecutionPolicy Bypass -File release.ps1 -AllowUnsigned   # bộ cài + bản zip (dist\release)
-powershell -ExecutionPolicy Bypass -File pack-msix.ps1           # gói Microsoft Store
 ```
 
-Chỉ cần Windows: script dùng `csc.exe` (.NET Framework 4.x) có sẵn, không cần Visual Studio. GitHub Actions tự build và kiểm thử mỗi lần đẩy mã; gắn tag `v…` để tạo bản phát hành. Ký số: xem `CODE-SIGNING.md`.
+Chỉ cần Windows: script dùng `csc.exe` (.NET Framework 4.x) có sẵn, không cần Visual Studio. GitHub Actions tự build và kiểm thử mỗi lần đẩy mã.
 
 | Thư mục | Nội dung |
 |---|---|
 | `src/` | Mã nguồn ứng dụng (C#, WinForms) |
-| `installer/` | Bộ cài cho từng tài khoản |
 | `assets/fonts/` | Phông chữ đi kèm (SIL Open Font License) |
 | `tests/` | Kiểm thử tự động |
-| `site/` | Chính sách quyền riêng tư (GitHub Pages); trang giới thiệu ở [phantrang.org](https://phantrang.org) |
 
 ## Giấy phép
 

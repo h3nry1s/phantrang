@@ -59,12 +59,6 @@ $sources = Get-ChildItem (Join-Path $root 'src') -Filter *.cs | ForEach-Object {
     /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Xml.dll /r:System.Xml.Linq.dll $sources
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
-# Sign when a code-signing certificate is available (Certum SimplySign logged in, or PT_SIGN_THUMBPRINT set).
-$hasCert = $env:PT_SIGN_THUMBPRINT -or @(Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert -ErrorAction SilentlyContinue | Where-Object { $_.NotAfter -gt (Get-Date) }).Count -gt 0
-$signer = Join-Path $root 'sign.ps1'   # maintainer-only, not in the public repository (releases are signed in CI)
-if ($hasCert -and (Test-Path $signer)) { & $signer -File "$dist\PhanTrang.exe" }
-else { Write-Warning 'CHUA KY SO: khong thay chung chi ky ma. Smart App Control se chan file nay. Xem CODE-SIGNING.md.' }
-
 $fonts = Join-Path $dist 'assets\fonts'
 New-Item -ItemType Directory -Force $fonts | Out-Null
 Copy-Item (Join-Path $root 'assets\fonts\*') $fonts -Force
